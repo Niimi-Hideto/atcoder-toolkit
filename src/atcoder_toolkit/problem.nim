@@ -78,8 +78,17 @@ proc validateAtCoderUrl*(rawUrl: string): Problem =
 
   result = makeProblem(parts[1], parts[3])
 
+proc withoutReviewSuffix(sourceName: string): string =
+  let separator = sourceName.rfind('_')
+  if separator > 0 and separator < sourceName.high:
+    let suffix = sourceName[separator + 1 .. ^1]
+    if suffix.allCharsInSet(Digits):
+      return sourceName[0 ..< separator]
+  sourceName
+
 proc inferProblem*(sourcePath: string): Problem =
-  let sourceName = splitFile(sourcePath).name
+  let originalSourceName = splitFile(sourcePath).name
+  let sourceName = withoutReviewSuffix(originalSourceName)
   if sourceName.len < 2 or not sourceName[0].isAlphaAscii():
     raise newException(
       AcktError,

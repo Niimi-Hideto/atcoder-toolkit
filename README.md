@@ -9,6 +9,7 @@ ackt test ABC_A/A484.cpp
 ## 現在の機能
 
 - `A484.cpp`というファイル名から`abc484_a`を判定
+- `A484_2.cpp`のような復習用ファイルを元の問題として判定
 - `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
 - 初回だけ公開問題ページからサンプルを取得
 - 取得完了を確認できたサンプルは`.ackt/tests/<task-id>/`から再利用
@@ -75,14 +76,18 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 
 表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。現在のローカル制限時間は1ケース2秒です。
 
-`A`・`B`・`C`と2桁の数字だけで構成されたファイル名は鉄則本として扱い、それ以外は従来の`A484.cpp`形式としてABCを判定します。
+末尾の`_2`・`_3`など数字の接尾辞は復習回数として無視します。フォルダーの位置は判定に影響しないため、たとえば`ABC_A/Re/A484_2.cpp`は`A484.cpp`と同じ問題、`A01_2.cpp`は`A01.cpp`と同じ鉄則本の問題として扱います。
+
+接尾辞を除いた名前が`A`・`B`・`C`と2桁の数字だけで構成されていれば鉄則本として扱い、それ以外は従来の`A484.cpp`形式としてABCを判定します。
 
 | ファイル | 判定される問題 |
 |---|---|
 | `ABC_A/A484.cpp` | `abc484_a` |
+| `ABC_A/Re/A484_2.cpp` | `abc484_a` |
 | `ABC_B/B484.cpp` | `abc484_b` |
 | `ABC_C/C484.cpp` | `abc484_c` |
 | `tessoku/A01.cpp` | `tessoku_book_a` |
+| `Re/A01_2.cpp` | `tessoku_book_a` |
 | `tessoku/B01.cpp` | `tessoku_book_bz` |
 | `tessoku/A77.cpp` | `typical90_a` |
 | `tessoku/C18.cpp` | `typical90_s` |
