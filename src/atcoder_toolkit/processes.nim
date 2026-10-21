@@ -16,7 +16,7 @@ proc runCommand*(executable: string, args: seq[string]): CommandResult =
     result = CommandResult(output: response.output, exitCode: response.exitCode)
   except OSError as error:
     raise newException(
-      NimacError,
+      AcktError,
       "コマンドを起動できません: " & executable & "\n" & error.msg
     )
 

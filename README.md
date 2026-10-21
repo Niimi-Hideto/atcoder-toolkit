@@ -1,9 +1,9 @@
-# nimac
+# AtCoder Toolkit
 
-`nimac`は、AtCoderのサンプルを初回だけ取得し、C++の解答をコンパイルして全サンプルを実行するNim製CLIです。
+`ackt`は、AtCoderのサンプルを初回だけ取得し、C++の解答をコンパイルして全サンプルを実行するNim製ツールキットです。
 
 ```text
-nimac test ABC_A/A484.cpp
+ackt test ABC_A/A484.cpp
 ```
 
 ## 現在の機能
@@ -11,7 +11,7 @@ nimac test ABC_A/A484.cpp
 - `A484.cpp`というファイル名から`abc484_a`を判定
 - `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
 - 初回だけ公開問題ページからサンプルを取得
-- 取得完了を確認できたサンプルは`.nimac/tests/<task-id>/`から再利用
+- 取得完了を確認できたサンプルは`.ackt/tests/<task-id>/`から再利用
 - C++17としてコンパイル
 - 全サンプルを実行し、`online-judge-tools`で期待値と比較
 - `[1/10] AC  6 ms`形式で判定とローカル実行時間を表示
@@ -43,7 +43,7 @@ nimble install
 既存の`Atcorder`リポジトリのルートで実行します。
 
 ```bash
-nimac test ABC_A/A484.cpp
+ackt test ABC_A/A484.cpp
 ```
 
 ```text
@@ -90,21 +90,21 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 したがって鉄則本はURLを付けずに実行できます。
 
 ```bash
-nimac test tessoku/A01.cpp
-nimac test tessoku/B01.cpp
+ackt test tessoku/A01.cpp
+ackt test tessoku/B01.cpp
 ```
 
 AtCoderの鉄則本演習ページに掲載されていない欠番（`A47`、`B05`など）は、誤ったURLへアクセスせずエラーにします。その他のコンテストや異なる命名規則ではURLを明示します。
 
 ```bash
-nimac test main.cpp \
+ackt test main.cpp \
   --url https://atcoder.jp/contests/tessoku-book/tasks/tessoku_book_a
 ```
 
 `oj`とコンパイラの元ログも確認したい場合は`--verbose`を付けます。
 
 ```bash
-nimac test ABC_A/A484.cpp --verbose
+ackt test ABC_A/A484.cpp --verbose
 ```
 
 処理の流れは次のとおりです。
@@ -127,12 +127,12 @@ nimble test
 実行時のファイルは、対象のGitリポジトリ直下に作られます。
 
 ```text
-.nimac/
+.ackt/
 ├── build/
 └── tests/
 ```
 
-AtCoderの解答リポジトリ側でも`.nimac/`を`.gitignore`へ追加してください。
+AtCoderの解答リポジトリ側でも`.ackt/`を`.gitignore`へ追加してください。
 
 ## 現在の対象外
 

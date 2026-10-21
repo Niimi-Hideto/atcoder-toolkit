@@ -1,6 +1,6 @@
 import std/[os, strutils, times, unittest]
 
-import nimac/[errors, problem, processes, reporting, workflow]
+import atcoder_toolkit/[errors, problem, processes, reporting, workflow]
 
 suite "problem resolution":
   test "current ABC file convention is inferred":
@@ -31,9 +31,9 @@ suite "problem resolution":
     check inferProblem("tessoku/C18.cpp").taskId == "typical90_s"
 
   test "missing tessoku problem numbers are rejected":
-    expect NimacError:
+    expect AcktError:
       discard inferProblem("tessoku/A47.cpp")
-    expect NimacError:
+    expect AcktError:
       discard inferProblem("tessoku/B05.cpp")
 
   test "explicit AtCoder URL is accepted":
@@ -44,12 +44,12 @@ suite "problem resolution":
     check problemInfo.taskId == "tessoku_book_a"
 
   test "non-AtCoder URL is rejected":
-    expect NimacError:
+    expect AcktError:
       discard validateAtCoderUrl("https://example.com/contests/abc484/tasks/abc484_a")
 
 suite "workflow":
   test "downloads once, then compiles and tests from cache":
-    let tempRoot = getTempDir() / ("nimac-test-" & $getTime().toUnix())
+    let tempRoot = getTempDir() / ("ackt-test-" & $getTime().toUnix())
     let sourceDir = tempRoot / "ABC_A"
     let sourcePath = sourceDir / "A999.cpp"
     createDir(tempRoot / ".git")
@@ -88,9 +88,9 @@ suite "workflow":
     check calls[0][1][0] == "download"
     check calls[1][0] == "fake-cxx"
     check calls[2][1][0] == "test"
-    let expectedExecutable = tempRoot / ".nimac" / "build" / changeFileExt("A999", ExeExt)
+    let expectedExecutable = tempRoot / ".ackt" / "build" / changeFileExt("A999", ExeExt)
     check fileExists(expectedExecutable)
-    check fileExists(tempRoot / ".nimac" / "tests" / "abc999_a" / ".download-complete")
+    check fileExists(tempRoot / ".ackt" / "tests" / "abc999_a" / ".download-complete")
 
     calls.setLen(0)
     check runWorkflow(sourcePath, config = config, runner = fakeRunner)

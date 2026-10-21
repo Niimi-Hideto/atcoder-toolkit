@@ -1,9 +1,9 @@
 version       = "0.1.0"
 author        = "Hideto Niimi"
-description   = "Download AtCoder samples once, then compile and test C++ solutions."
+description   = "A Nim-powered toolkit for testing and managing AtCoder solutions locally."
 license       = "MIT"
 srcDir        = "src"
-bin           = @["nimac"]
+bin           = @["ackt"]
 
 requires "nim >= 2.0.0"
 

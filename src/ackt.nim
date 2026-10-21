@@ -1,16 +1,16 @@
 import std/[os, strutils]
 
-import nimac/[errors, workflow]
+import atcoder_toolkit/[errors, workflow]
 
 const Usage = """
-nimac - AtCoder sample runner
+ackt - AtCoder Toolkit
 
 Usage:
-  nimac test <solution.cpp> [--url <AtCoder problem URL>] [--verbose]
+  ackt test <solution.cpp> [--url <AtCoder problem URL>] [--verbose]
 
 Examples:
-  nimac test ABC_A/A484.cpp
-  nimac test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
+  ackt test ABC_A/A484.cpp
+  ackt test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
 """
 
 type
@@ -24,9 +24,9 @@ proc parseOptions(args: seq[string]): CliOptions =
     echo Usage
     quit(0)
   if args[0] != "test":
-    raise newException(NimacError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
+    raise newException(AcktError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
   if args.len < 2:
-    raise newException(NimacError, "C++ファイルを指定してください\n\n" & Usage)
+    raise newException(AcktError, "C++ファイルを指定してください\n\n" & Usage)
 
   result.sourcePath = args[1]
   var index = 2
@@ -34,7 +34,7 @@ proc parseOptions(args: seq[string]): CliOptions =
     let argument = args[index]
     if argument == "--url":
       if index + 1 >= args.len:
-        raise newException(NimacError, "--url の後に問題URLを指定してください")
+        raise newException(AcktError, "--url の後に問題URLを指定してください")
       result.url = args[index + 1]
       inc index, 2
     elif argument.startsWith("--url="):
@@ -44,14 +44,14 @@ proc parseOptions(args: seq[string]): CliOptions =
       result.verbose = true
       inc index
     else:
-      raise newException(NimacError, "不明な引数です: " & argument)
+      raise newException(AcktError, "不明な引数です: " & argument)
 
 proc main() =
   try:
     let options = parseOptions(commandLineParams())
     if not runWorkflow(options.sourcePath, options.url, verbose = options.verbose):
       quit(1)
-  except NimacError as error:
+  except AcktError as error:
     stderr.writeLine("[error] " & error.msg)
     quit(1)
   except CatchableError as error:
