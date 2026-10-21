@@ -76,18 +76,18 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 
 表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。現在のローカル制限時間は1ケース2秒です。
 
-末尾の`_2`・`_3`など数字の接尾辞は復習回数として無視します。フォルダーの位置は判定に影響しないため、たとえば`ABC_A/Re/A484_2.cpp`は`A484.cpp`と同じ問題、`A01_2.cpp`は`A01.cpp`と同じ鉄則本の問題として扱います。
+末尾の`_2`・`_3`など数字の接尾辞は復習回数として無視します。フォルダーの位置は判定に影響しないため、たとえば`ABC_Re_B/B474_2.cpp`は`B474.cpp`と同じ問題、鉄則本の章フォルダー内にある`A04_2.cpp`は`A04.cpp`と同じ問題として扱います。
 
 接尾辞を除いた名前が`A`・`B`・`C`と2桁の数字だけで構成されていれば鉄則本として扱い、それ以外は従来の`A484.cpp`形式としてABCを判定します。
 
 | ファイル | 判定される問題 |
 |---|---|
 | `ABC_A/A484.cpp` | `abc484_a` |
-| `ABC_A/Re/A484_2.cpp` | `abc484_a` |
+| `ABC_Re_B/B474_2.cpp` | `abc474_b` |
 | `ABC_B/B484.cpp` | `abc484_b` |
 | `ABC_C/C484.cpp` | `abc484_c` |
 | `tessoku/A01.cpp` | `tessoku_book_a` |
-| `Re/A01_2.cpp` | `tessoku_book_a` |
+| `競技プログラミングの鉄則/01_アルゴリズムと計算量/A04_2.cpp` | `tessoku_book_d` |
 | `tessoku/B01.cpp` | `tessoku_book_bz` |
 | `tessoku/A77.cpp` | `typical90_a` |
 | `tessoku/C18.cpp` | `typical90_s` |

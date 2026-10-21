@@ -15,12 +15,12 @@ suite "problem resolution":
     check problemInfo.taskId == "abc086_a"
 
   test "numbered review files use the original ABC problem":
-    let secondAttempt = inferProblem("ABC_A/Re/A484_2.cpp")
-    check secondAttempt.contestId == "abc484"
-    check secondAttempt.taskId == "abc484_a"
+    let secondAttempt = inferProblem("ABC_Re_B/B474_2.cpp")
+    check secondAttempt.contestId == "abc474"
+    check secondAttempt.taskId == "abc474_b"
 
-    let twelfthAttempt = inferProblem("ABC_C/Re/C484_12.cpp")
-    check twelfthAttempt.taskId == "abc484_c"
+    let anotherReview = inferProblem("ABC_Re_C/C437_2.cpp")
+    check anotherReview.taskId == "abc437_c"
 
   test "tessoku A and B file names are inferred":
     let a01 = inferProblem("tessoku/A01.cpp")
@@ -39,8 +39,8 @@ suite "problem resolution":
     check inferProblem("tessoku/C18.cpp").taskId == "typical90_s"
 
   test "numbered review files also work for tessoku problems":
-    check inferProblem("Re/A01_2.cpp").taskId == "tessoku_book_a"
-    check inferProblem("Re/A77_3.cpp").taskId == "typical90_a"
+    check inferProblem("競技プログラミングの鉄則/01_アルゴリズムと計算量/A04_2.cpp").taskId == "tessoku_book_d"
+    check inferProblem("競技プログラミングの鉄則/03_二分探索/A12_3.cpp").taskId == "tessoku_book_l"
 
   test "missing tessoku problem numbers are rejected":
     expect AcktError:
