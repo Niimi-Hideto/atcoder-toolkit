@@ -131,6 +131,9 @@ suite "workflow":
     createDir(tempRoot / ".git")
     createDir(sourceDir)
     writeFile(sourcePath, "int main() { return 0; }\n")
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
 
     var calls: seq[(string, seq[string])] = @[]
     let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
@@ -174,7 +177,41 @@ suite "workflow":
     check calls[0][0] == "fake-cxx"
     check calls[1][1][0] == "test"
 
-    removeDir(tempRoot)
+  test "samples left by an interrupted download are fetched again":
+    let tempRoot = getTempDir() / ("actk-test-retry-" & $getTime().toUnix())
+    let sourcePath = tempRoot / "ABC_A" / "A998.cpp"
+    let testDir = tempRoot / ".actk" / "tests" / "abc998_a"
+    createDir(tempRoot / ".git")
+    createDir(sourcePath.parentDir)
+    createDir(testDir)
+    writeFile(sourcePath, "int main() { return 0; }\n")
+    writeFile(testDir / "sample-1.in", "stale\n")
+    writeFile(testDir / "sample-1.out", "stale\n")
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
+
+    # 本物のoj downloadと同じく、既存ファイルがあれば失敗する
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      if args.len > 0 and args[0] == "download":
+        let downloadDir = args[args.find("-d") + 1]
+        if fileExists(downloadDir / "sample-1.in"):
+          return CommandResult(output: "[ERROR] file already exists", exitCode: 1)
+        writeFile(downloadDir / "sample-1.in", "1\n")
+        writeFile(downloadDir / "sample-1.out", "1\n")
+      elif executable == "fake-cxx":
+        writeFile(args[args.find("-o") + 1], "fake executable")
+      elif args.len > 0 and args[0] == "test":
+        return CommandResult(
+          output: "[INFO] sample-1\n[INFO] time: 0.006 sec\n[SUCCESS] AC\n",
+          exitCode: 0
+        )
+      CommandResult(output: "", exitCode: 0)
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 2.0)
+    check runWorkflow(sourcePath, config = config, runner = fakeRunner)
+    check readFile(testDir / "sample-1.in") == "1\n"
+    check fileExists(testDir / ".download-complete")
 
   test "time limit and error tolerance are passed to oj test":
     let tempRoot = getTempDir() / ("actk-test-options-" & $getTime().toUnix())

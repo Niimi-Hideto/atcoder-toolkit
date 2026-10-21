@@ -46,6 +46,13 @@ proc cacheMarkerPath(testDir: string): string =
 proc hasCompleteSampleCache(testDir: string): bool =
   fileExists(cacheMarkerPath(testDir)) and samplePairCount(testDir) > 0
 
+# oj downloadは同名ファイルがあると取得を拒否するため、中断で残ったサンプルを消しておく
+proc removeIncompleteSamples(testDir: string) =
+  for kind, path in walkDir(testDir):
+    let (_, name, ext) = splitFile(path)
+    if kind == pcFile and name.startsWith("sample-") and ext in [".in", ".out"]:
+      removeFile(path)
+
 proc showCommandOutput(commandResult: CommandResult) =
   if commandResult.output.len > 0:
     stdout.write(commandResult.output)
@@ -81,6 +88,7 @@ proc runWorkflow*(
 
   var sampleCount: int
   if not hasCompleteSampleCache(testDir):
+    removeIncompleteSamples(testDir)
     let downloadResult = runner(
       config.oj,
       @["download", "-d", testDir, problemInfo.url]
