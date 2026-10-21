@@ -9,6 +9,7 @@ nimac test ABC_A/A484.cpp
 ## 現在の機能
 
 - `A484.cpp`というファイル名から`abc484_a`を判定
+- `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
 - 初回だけ公開問題ページからサンプルを取得
 - 取得完了を確認できたサンプルは`.nimac/tests/<task-id>/`から再利用
 - C++17としてコンパイル
@@ -73,14 +74,26 @@ FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
 
 表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。現在のローカル制限時間は1ケース2秒です。
 
-現在のファイル命名規則では、先頭の英字を問題ラベル、残りの数字をABC番号として扱います。
+`A`・`B`・`C`と2桁の数字だけで構成されたファイル名は鉄則本として扱い、それ以外は従来の`A484.cpp`形式としてABCを判定します。
 
 | ファイル | 判定される問題 |
 |---|---|
 | `ABC_A/A484.cpp` | `abc484_a` |
 | `ABC_B/B484.cpp` | `abc484_b` |
 | `ABC_C/C484.cpp` | `abc484_c` |
-鉄則本など命名規則が異なる問題ではURLを明示します。
+| `tessoku/A01.cpp` | `tessoku_book_a` |
+| `tessoku/B01.cpp` | `tessoku_book_bz` |
+| `tessoku/A77.cpp` | `typical90_a` |
+| `tessoku/C18.cpp` | `typical90_s` |
+
+したがって鉄則本はURLを付けずに実行できます。
+
+```bash
+nimac test tessoku/A01.cpp
+nimac test tessoku/B01.cpp
+```
+
+AtCoderの鉄則本演習ページに掲載されていない欠番（`A47`、`B05`など）は、誤ったURLへアクセスせずエラーにします。その他のコンテストや異なる命名規則ではURLを明示します。
 
 ```bash
 nimac test main.cpp \

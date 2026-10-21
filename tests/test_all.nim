@@ -9,6 +9,33 @@ suite "problem resolution":
     check problemInfo.taskId == "abc484_c"
     check problemInfo.url == "https://atcoder.jp/contests/abc484/tasks/abc484_c"
 
+  test "three-digit ABC numbers remain ABC problems":
+    let problemInfo = inferProblem("ABC_A/A086.cpp")
+    check problemInfo.contestId == "abc086"
+    check problemInfo.taskId == "abc086_a"
+
+  test "tessoku A and B file names are inferred":
+    let a01 = inferProblem("tessoku/A01.cpp")
+    check a01.contestId == "tessoku-book"
+    check a01.taskId == "tessoku_book_a"
+    check a01.url == "https://atcoder.jp/contests/tessoku-book/tasks/tessoku_book_a"
+
+    let b01 = inferProblem("tessoku/B01.cpp")
+    check b01.taskId == "tessoku_book_bz"
+
+    let b06 = inferProblem("tessoku/B06.cpp")
+    check b06.taskId == "tessoku_book_ce"
+
+  test "tessoku tasks borrowed from Typical 90 use their real task IDs":
+    check inferProblem("tessoku/A77.cpp").taskId == "typical90_a"
+    check inferProblem("tessoku/C18.cpp").taskId == "typical90_s"
+
+  test "missing tessoku problem numbers are rejected":
+    expect NimacError:
+      discard inferProblem("tessoku/A47.cpp")
+    expect NimacError:
+      discard inferProblem("tessoku/B05.cpp")
+
   test "explicit AtCoder URL is accepted":
     let problemInfo = validateAtCoderUrl(
       "https://atcoder.jp/contests/tessoku-book/tasks/tessoku_book_a"
