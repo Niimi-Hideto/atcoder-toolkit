@@ -12,52 +12,72 @@ actk test ABC_A/A484.cpp
 - `A484_2.cpp`のような復習用ファイルを元の問題として判定
 - `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
 - `template.cpp`からABCのA〜Dファイルを一括作成
-- 初回だけ公開問題ページからサンプルを取得
-- 取得完了を確認できたサンプルは`.actk/tests/<task-id>/`から再利用
-- C++17としてコンパイル
-- 全サンプルを実行し、`online-judge-tools`で期待値と比較
+- 初回だけ公開問題ページからサンプルを取得し、2回目以降は保存済みのサンプルを再利用
+- C++17としてコンパイルし、全サンプルを`online-judge-tools`で期待値と比較
 - `[1/10] AC  6 ms`形式で判定とローカル実行時間を表示
 - WAでは最初に異なる行、REでは終了理由、TLEでは制限時間を簡潔に表示
+- 制限時間（`--tl`）と小数の許容誤差（`--error`）を指定可能
 - ログイン・提出・AIによる解答生成は行わない
 
-## 必要なもの
+## 導入
+
+### 必要なもの
 
 - Nim 2.0以上
-- C++17対応の`g++`
+- C++17対応の`g++`（`#include <bits/stdc++.h>`を使える環境）
 - [`online-judge-tools`](https://github.com/online-judge-tools/oj)の`oj`コマンド
 
 公開済みの通常問題からサンプルを取得するだけなので、AtCoderアカウントへのログインは不要です。
 
-## ビルド
+### インストール（macOS）
+
+NimとNimble（Nimのパッケージ管理）はHomebrewで、`oj`はpipで入れます。
+
+```bash
+brew install nim
+pip install online-judge-tools
+```
+
+このリポジトリを取得して、`actk`をインストールします。
+
+```bash
+git clone https://github.com/Niimi-Hideto/atcoder-toolkit.git
+cd atcoder-toolkit
+nimble install
+```
+
+`actk`は`~/.nimble/bin`に入ります。どのフォルダーからでも`actk`だけで起動できるように、`~/.zshrc`へ次の行を追加してPATHに登録します。
+
+```bash
+export PATH="$HOME/.nimble/bin:$PATH"
+```
+
+ターミナルを開き直す（または`source ~/.zshrc`を実行する）と反映されます。使い方が表示されれば完了です。
+
+```bash
+actk --help
+```
+
+Windowsでも、NimとNimble、`oj`を入れて`nimble install`を実行し、`%USERPROFILE%\.nimble\bin`をPATHへ追加すれば同様に使えます。
+
+ツール自体を修正したときは、`nimble install`をもう一度実行すると反映されます。インストールせずに試す場合は、リポジトリ内でビルドして直接実行します。
 
 ```bash
 nimble build -d:release
-```
-
-リポジトリ全体から使えるようにする場合は、Nimbleでインストールします。
-
-```bash
-nimble install
+./actk --help
 ```
 
 ## 使い方
 
-既存の`Atcorder`リポジトリのルートで実行します。
-
 ### コンテスト前の準備
+
+`template.cpp`がある`Atcorder`リポジトリのルートで実行します。
 
 ```bash
 actk init 484
 ```
 
-ルートの`template.cpp`をコピーして、次の4ファイルを作成します。`actk init abc484`でも同じ結果になります。
-
-```text
-ABC_A/A484.cpp
-ABC_B/B484.cpp
-ABC_C/C484.cpp
-ABC_D/D484.cpp
-```
+`template.cpp`をコピーして、次の4ファイルを作成します。`actk init abc484`でも同じ結果になります。
 
 ```text
 contest  abc484
@@ -72,6 +92,8 @@ READY  4 created, 0 skipped
 既存ファイルは上書きせず`skipped`と表示します。ネットワーク通信やサンプル取得は行いません。
 
 ### サンプルテスト
+
+解答ファイルを指定します。`test`はリポジトリ内のどのフォルダーからでも実行できます。
 
 ```bash
 actk test ABC_A/A484.cpp
@@ -102,61 +124,54 @@ FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
       test time 2.06 s
 ```
 
-REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`などを表示し、それ以外は`abnormal termination`と表示します。終了コードや標準エラーを含む元ログは`--verbose`で確認できます。
+REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`などを表示し、それ以外は`abnormal termination`と表示します。
 
-表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。ローカル制限時間は既定で1ケース2秒です。制限時間が長い問題では`--tl`で秒数を指定します。
+表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。
+
+### オプション
+
+オプションは**解答ファイルの後ろ**に書きます。`actk test --tl 3 ABC_C/C484.cpp`のように前へ書くとエラーになります。
+
+| オプション | 用途 |
+|---|---|
+| `--tl <秒>` | 1ケースの制限時間。既定は2秒。制限時間が長い問題で指定する |
+| `--error <許容誤差>` | 小数を答える問題で、数値として誤差の範囲内なら正解にする |
+| `--url <問題URL>` | ファイル名から判定できない問題で、問題を直接指定する |
+| `--verbose` | `oj`とコンパイラの元ログ（終了コードや標準エラーを含む）も表示する |
 
 ```bash
 actk test ABC_C/C484.cpp --tl 3
-```
-
-「絶対誤差または相対誤差が10^-6以下なら正解」のように小数を答える問題では、`--error`で許容誤差を指定します。指定しないと出力の完全一致で判定するため、正しい答えでもWAになることがあります。
-
-```bash
 actk test ABC_B/B484.cpp --error 1e-6
+actk test main.cpp --url https://atcoder.jp/contests/arc180/tasks/arc180_a
+actk test ABC_A/A484.cpp --verbose
 ```
 
-末尾の`_2`・`_3`など数字の接尾辞は復習回数として無視します。フォルダーの位置は判定に影響しないため、たとえば`ABC_Re_B/B474_2.cpp`は`B474.cpp`と同じ問題、鉄則本の章フォルダー内にある`A04_2.cpp`は`A04.cpp`と同じ問題として扱います。
+`--error`は、問題文に「絶対誤差または相対誤差が10^-6以下なら正解」のように書かれているときに使います。指定しないと出力の完全一致で判定するため、`0.5`と`0.5000000000`のように値が同じでもWAになります。
 
-接尾辞を除いた名前が`A`・`B`・`C`と2桁の数字だけで構成されていれば鉄則本として扱い、それ以外は従来の`A484.cpp`形式としてABCを判定します。
+## ファイル名からの問題判定
+
+ファイル名から問題を判定するため、通常は`--url`なしで実行できます。
+
+- 末尾の`_2`・`_3`など数字の接尾辞は、復習回数として無視します
+- フォルダーの位置は判定に影響しません
+- 接尾辞を除いた名前が`A`・`B`・`C`と2桁の数字なら鉄則本、それ以外は`A484`形式のABCとして判定します
 
 | ファイル | 判定される問題 |
 |---|---|
 | `ABC_A/A484.cpp` | `abc484_a` |
-| `ABC_Re_B/B474_2.cpp` | `abc474_b` |
-| `ABC_B/B484.cpp` | `abc484_b` |
 | `ABC_C/C484.cpp` | `abc484_c` |
-| `tessoku/A01.cpp` | `tessoku_book_a` |
+| `ABC_Re_B/B474_2.cpp` | `abc474_b` |
 | `競技プログラミングの鉄則/01_アルゴリズムと計算量/A04_2.cpp` | `tessoku_book_d` |
-| `tessoku/B01.cpp` | `tessoku_book_bz` |
-| `tessoku/A06.cpp` | `math_and_algorithm_ai` |
-| `tessoku/B16.cpp` | `dp_a` |
-| `tessoku/A77.cpp` | `typical90_a` |
-| `tessoku/C18.cpp` | `typical90_s` |
+| `競技プログラミングの鉄則/02_累積和/A06.cpp` | `math_and_algorithm_ai` |
+| `競技プログラミングの鉄則/04_動的計画法/B16.cpp` | `dp_a` |
 
-鉄則本の演習ページには、他のコンテストの問題をそのまま掲載している番号が14問あります（`A06`・`A27`・`A29`・`A39`・`A50`・`A62`・`A63`・`A77`・`B07`・`B16`・`B28`・`B63`・`C09`・`C18`）。これらは掲載先の問題IDで判定するため、鉄則本はURLを付けずに実行できます。
+鉄則本の演習ページには、他のコンテストの問題をそのまま掲載している番号が14問あります（`A06`・`A27`・`A29`・`A39`・`A50`・`A62`・`A63`・`A77`・`B07`・`B16`・`B28`・`B63`・`C09`・`C18`）。これらも掲載先の問題IDで判定します。
 
-```bash
-actk test tessoku/A01.cpp
-actk test tessoku/B01.cpp
-```
+演習ページに掲載されていない欠番（`A47`、`B05`など）は、誤ったURLへアクセスせずエラーにします。
 
-AtCoderの鉄則本演習ページに掲載されていない欠番（`A47`、`B05`など）は、誤ったURLへアクセスせずエラーにします。その他のコンテストや異なる命名規則ではURLを明示します。
+## 処理の流れ
 
-```bash
-actk test main.cpp \
-  --url https://atcoder.jp/contests/tessoku-book/tasks/tessoku_book_a
-```
-
-`oj`とコンパイラの元ログも確認したい場合は`--verbose`を付けます。
-
-```bash
-actk test ABC_A/A484.cpp --verbose
-```
-
-処理の流れは次のとおりです。
-
-1. 問題を判定する
+1. ファイル名（または`--url`）から問題を判定する
 2. サンプルがなければ`oj download`で取得する
 3. `g++ -std=c++17 -O2 -Wall -Wextra`でコンパイルする
 4. `oj test`で全サンプルを実行し、結果を簡潔な形式へ整形する
@@ -172,25 +187,29 @@ actk test ABC_A/A484.cpp --verbose
 ACTK_CXX=g++-15 actk test ABC_A/A484.cpp
 ```
 
-## テスト
-
-```bash
-nimble test
-```
-
-テストでは外部通信を行わず、`oj`と`g++`の呼び出しを偽物に差し替えて、初回取得・キャッシュ再利用・中断後の再取得を検証します。
-
 ## 生成ファイル
 
-実行時のファイルは、対象のGitリポジトリ直下に作られます。
+実行時のファイルは、解答ファイルを含むGitリポジトリの直下に作られます。
 
 ```text
 .actk/
-├── build/
-└── tests/
+├── build/              # コンパイルした実行ファイル
+└── tests/<問題ID>/     # 取得したサンプル
 ```
 
-AtCoderの解答リポジトリ側でも`.actk/`を`.gitignore`へ追加してください。
+解答リポジトリ側の`.gitignore`へ`.actk/`を追加してください。
+
+サンプルを取り直したいときは、その問題のフォルダーを消すと次回の実行で再取得します。取得が途中で中断された場合は、消さなくても自動で取り直します。
+
+```bash
+rm -rf .actk/tests/abc484_a
+```
+
+## 正しく判定できないケース
+
+- **ABC001〜ABC019：** 問題IDが`abc001_1`のような数字形式のため、ファイル名からは判定できません。`--url`で指定してください
+- **答えが複数ある問題：** 「条件を満たすものをどれか1つ出力」のような問題は、正しい答えでも期待値と違えばWAと表示されます
+- **インタラクティブ問題：** 対応していません
 
 ## 現在の対象外
 
@@ -201,3 +220,10 @@ AtCoderの解答リポジトリ側でも`.actk/`を`.gitignore`へ追加して�
 - デバッグ用サニタイザー
 - PythonなどC++以外の解答
 
+## テスト
+
+```bash
+nimble test
+```
+
+テストでは外部通信を行わず、`oj`と`g++`の呼び出しを偽物に差し替えて、初回取得・キャッシュ再利用・中断後の再取得を検証します。
