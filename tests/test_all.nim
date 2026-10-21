@@ -84,9 +84,23 @@ suite "problem resolution":
     let b06 = inferProblem("tessoku/B06.cpp")
     check b06.taskId == "tessoku_book_ce"
 
-  test "tessoku tasks borrowed from Typical 90 use their real task IDs":
+  test "tessoku tasks borrowed from other contests use their real task IDs":
     check inferProblem("tessoku/A77.cpp").taskId == "typical90_a"
     check inferProblem("tessoku/C18.cpp").taskId == "typical90_s"
+    check inferProblem("tessoku/A06.cpp").taskId == "math_and_algorithm_ai"
+    check inferProblem("tessoku/A50.cpp").taskId == "future_contest_2018_qual_a"
+    check inferProblem("tessoku/B16.cpp").taskId == "dp_a"
+    check inferProblem("tessoku/B63.cpp").taskId == "abc007_3"
+    check inferProblem("tessoku/C09.cpp").taskId == "math_and_algorithm_ac"
+
+    let a62 = inferProblem("競技プログラミングの鉄則/09_グラフアルゴリズム/A62_2.cpp")
+    check a62.contestId == "tessoku-book"
+    check a62.url == "https://atcoder.jp/contests/tessoku-book/tasks/math_and_algorithm_am"
+
+  test "regular tessoku numbers around borrowed ones stay sequential":
+    check inferProblem("tessoku/A05.cpp").taskId == "tessoku_book_e"
+    check inferProblem("tessoku/A07.cpp").taskId == "tessoku_book_g"
+    check inferProblem("tessoku/C10.cpp").taskId == "tessoku_book_fh"
 
   test "numbered review files also work for tessoku problems":
     check inferProblem("競技プログラミングの鉄則/01_アルゴリズムと計算量/A04_2.cpp").taskId == "tessoku_book_d"

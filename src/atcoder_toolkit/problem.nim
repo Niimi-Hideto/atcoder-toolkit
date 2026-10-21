@@ -10,6 +10,24 @@ type
 
 const TessokuContestId = "tessoku-book"
 
+# 鉄則本の演習ページで、他コンテストの問題をそのまま掲載している番号
+const BorrowedTessokuTasks = [
+  ("A06", "math_and_algorithm_ai"),
+  ("A27", "math_and_algorithm_o"),
+  ("A29", "math_and_algorithm_aq"),
+  ("A39", "math_and_algorithm_bn"),
+  ("A50", "future_contest_2018_qual_a"),
+  ("A62", "math_and_algorithm_am"),
+  ("A63", "math_and_algorithm_an"),
+  ("A77", "typical90_a"),
+  ("B07", "math_and_algorithm_al"),
+  ("B16", "dp_a"),
+  ("B28", "math_and_algorithm_ap"),
+  ("B63", "abc007_3"),
+  ("C09", "math_and_algorithm_ac"),
+  ("C18", "typical90_s")
+]
+
 proc makeProblem(contestId, taskId: string): Problem =
   Problem(
     contestId: contestId,
@@ -53,16 +71,13 @@ proc inferTessokuProblem(sourceName: string): Problem =
         "（AtCoder掲載のA01-A77・B01-B69・C01-C20のみ対応）"
     )
 
-  let taskId =
-    if section == 'A' and number == 77:
-      "typical90_a"
-    elif section == 'C' and number == 18:
-      "typical90_s"
-    else:
-      let sequentialNumber = (ord(section) - ord('A')) * 77 + number
-      "tessoku_book_" & toAlphabeticId(sequentialNumber)
+  let label = section & sourceName[1 .. 2]
+  for (borrowedLabel, borrowedTaskId) in BorrowedTessokuTasks:
+    if label == borrowedLabel:
+      return makeProblem(TessokuContestId, borrowedTaskId)
 
-  makeProblem(TessokuContestId, taskId)
+  let sequentialNumber = (ord(section) - ord('A')) * 77 + number
+  makeProblem(TessokuContestId, "tessoku_book_" & toAlphabeticId(sequentialNumber))
 
 proc validateAtCoderUrl*(rawUrl: string): Problem =
   let parsed = parseUri(rawUrl)
