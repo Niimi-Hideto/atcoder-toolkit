@@ -17,7 +17,7 @@ proc normalizeContestNumber*(rawContest: string): string =
 
   if number.len == 0 or not number.allCharsInSet(Digits):
     raise newException(
-      AcktError,
+      ActkError,
       "ABCのコンテスト番号を指定してください。例: 484 または abc484"
     )
 
@@ -25,7 +25,7 @@ proc normalizeContestNumber*(rawContest: string): string =
   while firstNonZero < number.len and number[firstNonZero] == '0':
     inc firstNonZero
   if firstNonZero == number.len:
-    raise newException(AcktError, "ABCのコンテスト番号は1以上を指定してください")
+    raise newException(ActkError, "ABCのコンテスト番号は1以上を指定してください")
 
   number = number[firstNonZero .. ^1]
   if number.len < 3:
@@ -36,10 +36,10 @@ proc initializeContest*(rawContest, projectRoot: string): InitResult =
   let contestNumber = normalizeContestNumber(rawContest)
   let templatePath = projectRoot / "template.cpp"
   if not dirExists(projectRoot):
-    raise newException(AcktError, "作業フォルダーが見つかりません: " & projectRoot)
+    raise newException(ActkError, "作業フォルダーが見つかりません: " & projectRoot)
   if not fileExists(templatePath):
     raise newException(
-      AcktError,
+      ActkError,
       "template.cppが見つかりません。Atcorderリポジトリのルートで実行してください"
     )
 
@@ -47,7 +47,7 @@ proc initializeContest*(rawContest, projectRoot: string): InitResult =
     try:
       readFile(templatePath)
     except OSError as error:
-      raise newException(AcktError, "template.cppを読み込めません: " & error.msg)
+      raise newException(ActkError, "template.cppを読み込めません: " & error.msg)
 
   result.contestId = "abc" & contestNumber
   for task in TaskLetters:
@@ -66,7 +66,7 @@ proc initializeContest*(rawContest, projectRoot: string): InitResult =
       writeFile(targetPath, templateText)
       result.created.add(relativePath)
     except OSError as error:
-      raise newException(AcktError, "ファイルを作成できません: " & relativePath & "\n" & error.msg)
+      raise newException(ActkError, "ファイルを作成できません: " & relativePath & "\n" & error.msg)
 
 proc initializeContest*(rawContest: string): InitResult =
   initializeContest(rawContest, getCurrentDir())

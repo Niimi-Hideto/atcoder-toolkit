@@ -10,8 +10,8 @@ type
 
 proc defaultWorkflowConfig*(): WorkflowConfig =
   WorkflowConfig(
-    compiler: getEnv("ACKT_CXX", "g++"),
-    oj: getEnv("ACKT_OJ", "oj"),
+    compiler: getEnv("ACTK_CXX", "g++"),
+    oj: getEnv("ACTK_OJ", "oj"),
     timeLimitSeconds: 2.0
   )
 
@@ -63,14 +63,14 @@ proc runWorkflow*(
     verbose = false
   ): bool =
   if not fileExists(sourcePath):
-    raise newException(AcktError, "C++ファイルが見つかりません: " & sourcePath)
+    raise newException(ActkError, "C++ファイルが見つかりません: " & sourcePath)
   if splitFile(sourcePath).ext.toLowerAscii() != ".cpp":
-    raise newException(AcktError, "現在対応している解答ファイルは .cpp だけです")
+    raise newException(ActkError, "現在対応している解答ファイルは .cpp だけです")
 
   let resolvedSource = absolutePath(sourcePath)
   let problemInfo = resolveProblem(resolvedSource, explicitUrl)
   let projectRoot = findProjectRoot(resolvedSource)
-  let stateDir = projectRoot / ".ackt"
+  let stateDir = projectRoot / ".actk"
   let testDir = stateDir / "tests" / problemInfo.taskId
   let buildDir = stateDir / "build"
   let executablePath = outputExecutablePath(buildDir, resolvedSource)
@@ -93,7 +93,7 @@ proc runWorkflow*(
       return false
     sampleCount = samplePairCount(testDir)
     if sampleCount == 0:
-      raise newException(AcktError, "サンプル取得後も .in/.out の組が見つかりません: " & testDir)
+      raise newException(ActkError, "サンプル取得後も .in/.out の組が見つかりません: " & testDir)
     writeFile(
       cacheMarkerPath(testDir),
       "url=" & problemInfo.url & "\n" & "samples=" & $sampleCount & "\n"
@@ -118,7 +118,7 @@ proc runWorkflow*(
   echo "compile  OK  " & formatElapsed(compileSeconds)
 
   if not fileExists(executablePath):
-    raise newException(AcktError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
+    raise newException(ActkError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
 
   echo ""
   let testResult = runner(
@@ -140,7 +140,7 @@ proc runWorkflow*(
     if not verbose:
       showCommandOutput(testResult)
     raise newException(
-      AcktError,
+      ActkError,
       "テスト結果を解釈できませんでした（" & $report.results.len & "/" & $sampleCount & "件）"
     )
 

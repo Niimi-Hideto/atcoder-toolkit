@@ -1,3 +1,3 @@
 type
-  AcktError* = object of CatchableError
+  ActkError* = object of CatchableError
 

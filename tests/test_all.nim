@@ -4,7 +4,7 @@ import atcoder_toolkit/[errors, initializer, problem, processes, reporting, work
 
 suite "contest initialization":
   test "creates A through D from template without overwriting existing files":
-    let tempRoot = getTempDir() / ("ackt-init-create-" & $getTime().toUnix())
+    let tempRoot = getTempDir() / ("actk-init-create-" & $getTime().toUnix())
     createDir(tempRoot)
     defer:
       if dirExists(tempRoot):
@@ -37,19 +37,19 @@ suite "contest initialization":
     check normalizeContestNumber("abc484") == "484"
 
   test "invalid contest numbers and missing templates are rejected":
-    expect AcktError:
+    expect ActkError:
       discard normalizeContestNumber("arc484")
-    expect AcktError:
+    expect ActkError:
       discard normalizeContestNumber("abc")
-    expect AcktError:
+    expect ActkError:
       discard normalizeContestNumber("000")
 
-    let tempRoot = getTempDir() / ("ackt-init-missing-" & $getTime().toUnix())
+    let tempRoot = getTempDir() / ("actk-init-missing-" & $getTime().toUnix())
     createDir(tempRoot)
     defer:
       if dirExists(tempRoot):
         removeDir(tempRoot)
-    expect AcktError:
+    expect ActkError:
       discard initializeContest("484", tempRoot)
 
 suite "problem resolution":
@@ -93,9 +93,9 @@ suite "problem resolution":
     check inferProblem("競技プログラミングの鉄則/03_二分探索/A12_3.cpp").taskId == "tessoku_book_l"
 
   test "missing tessoku problem numbers are rejected":
-    expect AcktError:
+    expect ActkError:
       discard inferProblem("tessoku/A47.cpp")
-    expect AcktError:
+    expect ActkError:
       discard inferProblem("tessoku/B05.cpp")
 
   test "explicit AtCoder URL is accepted":
@@ -106,12 +106,12 @@ suite "problem resolution":
     check problemInfo.taskId == "tessoku_book_a"
 
   test "non-AtCoder URL is rejected":
-    expect AcktError:
+    expect ActkError:
       discard validateAtCoderUrl("https://example.com/contests/abc484/tasks/abc484_a")
 
 suite "workflow":
   test "downloads once, then compiles and tests from cache":
-    let tempRoot = getTempDir() / ("ackt-test-" & $getTime().toUnix())
+    let tempRoot = getTempDir() / ("actk-test-" & $getTime().toUnix())
     let sourceDir = tempRoot / "ABC_A"
     let sourcePath = sourceDir / "A999.cpp"
     createDir(tempRoot / ".git")
@@ -150,9 +150,9 @@ suite "workflow":
     check calls[0][1][0] == "download"
     check calls[1][0] == "fake-cxx"
     check calls[2][1][0] == "test"
-    let expectedExecutable = tempRoot / ".ackt" / "build" / changeFileExt("A999", ExeExt)
+    let expectedExecutable = tempRoot / ".actk" / "build" / changeFileExt("A999", ExeExt)
     check fileExists(expectedExecutable)
-    check fileExists(tempRoot / ".ackt" / "tests" / "abc999_a" / ".download-complete")
+    check fileExists(tempRoot / ".actk" / "tests" / "abc999_a" / ".download-complete")
 
     calls.setLen(0)
     check runWorkflow(sourcePath, config = config, runner = fakeRunner)

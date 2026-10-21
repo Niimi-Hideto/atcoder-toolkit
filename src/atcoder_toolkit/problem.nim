@@ -48,7 +48,7 @@ proc inferTessokuProblem(sourceName: string): Problem =
   let number = parseInt(sourceName[1 .. 2])
   if not isValidTessokuProblem(section, number):
     raise newException(
-      AcktError,
+      ActkError,
       "鉄則本の問題番号が見つかりません: " & sourceName &
         "（AtCoder掲載のA01-A77・B01-B69・C01-C20のみ対応）"
     )
@@ -67,12 +67,12 @@ proc inferTessokuProblem(sourceName: string): Problem =
 proc validateAtCoderUrl*(rawUrl: string): Problem =
   let parsed = parseUri(rawUrl)
   if parsed.scheme != "https" or parsed.hostname.toLowerAscii() != "atcoder.jp":
-    raise newException(AcktError, "AtCoderのHTTPS URLを指定してください: " & rawUrl)
+    raise newException(ActkError, "AtCoderのHTTPS URLを指定してください: " & rawUrl)
 
   let parts = parsed.path.split('/').filterIt(it.len > 0)
   if parts.len != 4 or parts[0] != "contests" or parts[2] != "tasks":
     raise newException(
-      AcktError,
+      ActkError,
       "問題URLは https://atcoder.jp/contests/<contest>/tasks/<task> の形式で指定してください"
     )
 
@@ -91,7 +91,7 @@ proc inferProblem*(sourcePath: string): Problem =
   let sourceName = withoutReviewSuffix(originalSourceName)
   if sourceName.len < 2 or not sourceName[0].isAlphaAscii():
     raise newException(
-      AcktError,
+      ActkError,
       "ファイル名から問題を判定できません。例: ABC_A/A484.cpp または --url を指定してください"
     )
 
@@ -103,7 +103,7 @@ proc inferProblem*(sourcePath: string): Problem =
   let contestNumber = sourceName[1 .. ^1]
   if contestNumber.len == 0 or not contestNumber.allCharsInSet(Digits):
     raise newException(
-      AcktError,
+      ActkError,
       "ファイル名から問題を判定できません。例: ABC_A/A484.cpp または --url を指定してください"
     )
 

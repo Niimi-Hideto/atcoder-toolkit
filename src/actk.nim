@@ -3,16 +3,16 @@ import std/[os, strutils]
 import atcoder_toolkit/[errors, initializer, workflow]
 
 const Usage = """
-ackt - AtCoder Toolkit
+AtCoderToolKit
 
 Usage:
-  ackt init <ABC contest number>
-  ackt test <solution.cpp> [--url <AtCoder problem URL>] [--verbose]
+  actk init <ABC contest number>
+  actk test <solution.cpp> [--url <AtCoder problem URL>] [--verbose]
 
 Examples:
-  ackt init 484
-  ackt test ABC_A/A484.cpp
-  ackt test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
+  actk init 484
+  actk test ABC_A/A484.cpp
+  actk test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
 """
 
 type
@@ -34,17 +34,17 @@ proc parseOptions(args: seq[string]): CliOptions =
 
   if args[0] == "init":
     if args.len < 2:
-      raise newException(AcktError, "ABCのコンテスト番号を指定してください\n\n" & Usage)
+      raise newException(ActkError, "ABCのコンテスト番号を指定してください\n\n" & Usage)
     if args.len > 2:
-      raise newException(AcktError, "initに不明な引数があります: " & args[2])
+      raise newException(ActkError, "initに不明な引数があります: " & args[2])
     result.command = commandInit
     result.contest = args[1]
     return
 
   if args[0] != "test":
-    raise newException(AcktError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
+    raise newException(ActkError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
   if args.len < 2:
-    raise newException(AcktError, "C++ファイルを指定してください\n\n" & Usage)
+    raise newException(ActkError, "C++ファイルを指定してください\n\n" & Usage)
 
   result.command = commandTest
   result.sourcePath = args[1]
@@ -53,7 +53,7 @@ proc parseOptions(args: seq[string]): CliOptions =
     let argument = args[index]
     if argument == "--url":
       if index + 1 >= args.len:
-        raise newException(AcktError, "--url の後に問題URLを指定してください")
+        raise newException(ActkError, "--url の後に問題URLを指定してください")
       result.url = args[index + 1]
       inc index, 2
     elif argument.startsWith("--url="):
@@ -63,7 +63,7 @@ proc parseOptions(args: seq[string]): CliOptions =
       result.verbose = true
       inc index
     else:
-      raise newException(AcktError, "不明な引数です: " & argument)
+      raise newException(ActkError, "不明な引数です: " & argument)
 
 proc main() =
   try:
@@ -82,7 +82,7 @@ proc main() =
     of commandTest:
       if not runWorkflow(options.sourcePath, options.url, verbose = options.verbose):
         quit(1)
-  except AcktError as error:
+  except ActkError as error:
     stderr.writeLine("[error] " & error.msg)
     quit(1)
   except CatchableError as error:

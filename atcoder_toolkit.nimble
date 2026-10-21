@@ -3,7 +3,7 @@ author        = "Hideto Niimi"
 description   = "A Nim-powered toolkit for testing and managing AtCoder solutions locally."
 license       = "MIT"
 srcDir        = "src"
-bin           = @["ackt"]
+bin           = @["actk"]
 
 requires "nim >= 2.0.0"
 

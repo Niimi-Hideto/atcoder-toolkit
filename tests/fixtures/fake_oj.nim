@@ -12,7 +12,7 @@ if args.len == 0:
   stderr.writeLine("missing command")
   quit(2)
 
-let logPath = getEnv("ACKT_FAKE_OJ_LOG")
+let logPath = getEnv("ACTK_FAKE_OJ_LOG")
 if logPath.len > 0:
   var logFile = open(logPath, fmAppend)
   defer: logFile.close()

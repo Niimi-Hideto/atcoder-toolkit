@@ -1,9 +1,9 @@
-# AtCoder Toolkit
+# AtCoderToolKit
 
-`ackt`は、ABCの解答ファイルを準備し、AtCoderのサンプルを初回だけ取得して、C++の解答をコンパイル・テストするNim製ツールキットです。
+`actk`は、ABCの解答ファイルを準備し、AtCoderのサンプルを初回だけ取得して、C++の解答をコンパイル・テストするNim製ツールキットです。
 
 ```text
-ackt test ABC_A/A484.cpp
+actk test ABC_A/A484.cpp
 ```
 
 ## 現在の機能
@@ -13,7 +13,7 @@ ackt test ABC_A/A484.cpp
 - `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
 - `template.cpp`からABCのA〜Dファイルを一括作成
 - 初回だけ公開問題ページからサンプルを取得
-- 取得完了を確認できたサンプルは`.ackt/tests/<task-id>/`から再利用
+- 取得完了を確認できたサンプルは`.actk/tests/<task-id>/`から再利用
 - C++17としてコンパイル
 - 全サンプルを実行し、`online-judge-tools`で期待値と比較
 - `[1/10] AC  6 ms`形式で判定とローカル実行時間を表示
@@ -47,10 +47,10 @@ nimble install
 ### コンテスト前の準備
 
 ```bash
-ackt init 484
+actk init 484
 ```
 
-ルートの`template.cpp`をコピーして、次の4ファイルを作成します。`ackt init abc484`でも同じ結果になります。
+ルートの`template.cpp`をコピーして、次の4ファイルを作成します。`actk init abc484`でも同じ結果になります。
 
 ```text
 ABC_A/A484.cpp
@@ -74,7 +74,7 @@ READY  4 created, 0 skipped
 ### サンプルテスト
 
 ```bash
-ackt test ABC_A/A484.cpp
+actk test ABC_A/A484.cpp
 ```
 
 ```text
@@ -125,21 +125,21 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 したがって鉄則本はURLを付けずに実行できます。
 
 ```bash
-ackt test tessoku/A01.cpp
-ackt test tessoku/B01.cpp
+actk test tessoku/A01.cpp
+actk test tessoku/B01.cpp
 ```
 
 AtCoderの鉄則本演習ページに掲載されていない欠番（`A47`、`B05`など）は、誤ったURLへアクセスせずエラーにします。その他のコンテストや異なる命名規則ではURLを明示します。
 
 ```bash
-ackt test main.cpp \
+actk test main.cpp \
   --url https://atcoder.jp/contests/tessoku-book/tasks/tessoku_book_a
 ```
 
 `oj`とコンパイラの元ログも確認したい場合は`--verbose`を付けます。
 
 ```bash
-ackt test ABC_A/A484.cpp --verbose
+actk test ABC_A/A484.cpp --verbose
 ```
 
 処理の流れは次のとおりです。
@@ -162,12 +162,12 @@ nimble test
 実行時のファイルは、対象のGitリポジトリ直下に作られます。
 
 ```text
-.ackt/
+.actk/
 ├── build/
 └── tests/
 ```
 
-AtCoderの解答リポジトリ側でも`.ackt/`を`.gitignore`へ追加してください。
+AtCoderの解答リポジトリ側でも`.actk/`を`.gitignore`へ追加してください。
 
 ## 現在の対象外
 
