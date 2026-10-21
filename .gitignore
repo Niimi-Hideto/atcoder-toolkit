@@ -1,0 +1,10 @@
+/.nimac/
+/nimac
+/nimac.exe
+/nimcache/
+/build/
+/tests/tmp/
+/tests/test_all
+/tests/test_all.exe
+*.pdb
+
