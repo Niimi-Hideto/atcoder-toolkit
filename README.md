@@ -64,13 +64,14 @@ PASS  2/2  test time 34 ms
          expected: 42
          got:      41
 [3/4] RE     13 ms
-         exit code: 3
-         stderr: boom
+         reason: abnormal termination
 [4/4] TLE   >2.0 s
 
 FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
       test time 2.06 s
 ```
+
+REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`などを表示し、それ以外は`abnormal termination`と表示します。終了コードや標準エラーを含む元ログは`--verbose`で確認できます。
 
 表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。現在のローカル制限時間は1ケース2秒です。
 

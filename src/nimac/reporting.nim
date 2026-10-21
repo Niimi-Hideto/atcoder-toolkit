@@ -155,6 +155,42 @@ proc firstDifference(sample: SampleResult): tuple[lineNumber: int, expected, act
 
   (1, "(output differs)", "(output differs)")
 
+proc runtimeErrorReason(sample: SampleResult): string =
+  let diagnostic = sample.stderrLines.join("\n").toLowerAscii()
+  let rawReason = sample.reason.toLowerAscii()
+
+  for memoryError in [
+      "heap-buffer-overflow",
+      "stack-buffer-overflow",
+      "global-buffer-overflow",
+      "heap-use-after-free",
+      "stack-use-after-scope"
+    ]:
+    if memoryError in diagnostic:
+      return memoryError
+
+  if "stack overflow" in diagnostic or
+      "return code 3221225725" in rawReason or
+      "return code -1073741571" in rawReason:
+    return "stack overflow"
+  if "segmentation fault" in diagnostic or
+      "sigsegv" in diagnostic or
+      "access violation" in diagnostic or
+      "return code 3221225477" in rawReason or
+      "return code -1073741819" in rawReason or
+      "return code -11" in rawReason:
+    return "segmentation fault"
+  if "division by zero" in diagnostic:
+    return "division by zero"
+  if "floating point exception" in diagnostic or "sigfpe" in diagnostic:
+    return "floating-point exception"
+  if "std::bad_alloc" in diagnostic or "out of memory" in diagnostic:
+    return "out of memory"
+  if "terminate called after throwing" in diagnostic or "uncaught exception" in diagnostic:
+    return "uncaught exception"
+
+  "abnormal termination"
+
 proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
   if report.results.len == 0:
     return ""
@@ -196,12 +232,7 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
       lines.add("         got:      " & difference.actual)
     elif sample.verdict == verdictRe:
       lines.add(resultLine)
-      if sample.reason.startsWith("return code "):
-        lines.add("         exit code: " & sample.reason["return code ".len .. ^1])
-      elif sample.reason.len > 0:
-        lines.add("         reason: " & sample.reason)
-      if sample.stderrLines.len > 0:
-        lines.add("         stderr: " & visibleLine(sample.stderrLines[0]))
+      lines.add("         reason: " & runtimeErrorReason(sample))
     else:
       lines.add(resultLine)
 

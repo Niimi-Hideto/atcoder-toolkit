@@ -166,8 +166,30 @@ expected:
     check "expected: Even" in rendered
     check "got:      Odd" in rendered
     check "[3/4] RE" in rendered
-    check "exit code: 3" in rendered
-    check "stderr: boom" in rendered
+    check "reason: abnormal termination" in rendered
+    check "exit code: 3" notin rendered
+    check "stderr: boom" notin rendered
     check "[4/4] TLE" in rendered
     check "FAIL  1/4 passed  (WA 1, RE 1, TLE 1)" in rendered
+
+  test "known runtime errors get a concise reason":
+    let segfaultReport = TestReport(results: @[
+      SampleResult(
+        name: "sample-1",
+        verdict: verdictRe,
+        seconds: 0.010,
+        reason: "return code -11"
+      )
+    ])
+    check "reason: segmentation fault" in renderReport(segfaultReport, 2.0)
+
+    let sanitizerReport = TestReport(results: @[
+      SampleResult(
+        name: "sample-1",
+        verdict: verdictRe,
+        seconds: 0.010,
+        stderrLines: @["ERROR: AddressSanitizer: heap-buffer-overflow on address"]
+      )
+    ])
+    check "reason: heap-buffer-overflow" in renderReport(sanitizerReport, 2.0)
 
