@@ -176,6 +176,44 @@ suite "workflow":
 
     removeDir(tempRoot)
 
+  test "time limit and error tolerance are passed to oj test":
+    let tempRoot = getTempDir() / ("actk-test-options-" & $getTime().toUnix())
+    let sourcePath = tempRoot / "ABC_B" / "B999.cpp"
+    createDir(tempRoot / ".git")
+    createDir(sourcePath.parentDir)
+    writeFile(sourcePath, "int main() { return 0; }\n")
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
+
+    var testArgs: seq[string] = @[]
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      if args.len > 0 and args[0] == "download":
+        let testDir = args[args.find("-d") + 1]
+        writeFile(testDir / "sample-1.in", "1\n")
+        writeFile(testDir / "sample-1.out", "0.5\n")
+      elif executable == "fake-cxx":
+        writeFile(args[args.find("-o") + 1], "fake executable")
+      elif args.len > 0 and args[0] == "test":
+        testArgs = args
+        return CommandResult(
+          output: "[INFO] sample-1\n[INFO] time: 0.006 sec\n[SUCCESS] AC\n",
+          exitCode: 0
+        )
+      CommandResult(output: "", exitCode: 0)
+
+    let config = WorkflowConfig(
+      compiler: "fake-cxx",
+      oj: "fake-oj",
+      timeLimitSeconds: 3.0,
+      errorTolerance: 1e-6
+    )
+    check runWorkflow(sourcePath, config = config, runner = fakeRunner)
+    check testArgs[testArgs.find("-t") + 1] == "3.000"
+    let errorIndex = testArgs.find("-e")
+    check errorIndex >= 0
+    check parseFloat(testArgs[errorIndex + 1]) == 1e-6
+
 suite "compact report":
   test "two-digit case counts align the current case number":
     var report = TestReport()

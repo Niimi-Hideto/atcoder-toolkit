@@ -7,11 +7,14 @@ AtCoderToolKit
 
 Usage:
   actk init <ABC contest number>
-  actk test <solution.cpp> [--url <AtCoder problem URL>] [--verbose]
+  actk test <solution.cpp> [--url <AtCoder problem URL>] [--tl <seconds>]
+                           [--error <tolerance>] [--verbose]
 
 Examples:
   actk init 484
   actk test ABC_A/A484.cpp
+  actk test ABC_C/C484.cpp --tl 3
+  actk test ABC_B/B484.cpp --error 1e-6
   actk test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
 """
 
@@ -25,7 +28,31 @@ type
     contest: string
     sourcePath: string
     url: string
+    timeLimitSeconds: float
+    errorTolerance: float
     verbose: bool
+
+proc isOption(argument, name: string): bool =
+  argument == name or argument.startsWith(name & "=")
+
+proc takeOptionValue(args: seq[string], index: var int, name, hint: string): string =
+  let argument = args[index]
+  if argument == name:
+    if index + 1 >= args.len:
+      raise newException(ActkError, name & " の後に" & hint & "を指定してください")
+    result = args[index + 1]
+    inc index, 2
+  else:
+    result = argument[name.len + 1 .. ^1]
+    inc index
+
+proc parsePositiveFloat(value, name: string): float =
+  try:
+    result = parseFloat(value)
+  except ValueError:
+    raise newException(ActkError, name & " には数値を指定してください: " & value)
+  if result <= 0.0:
+    raise newException(ActkError, name & " には0より大きい値を指定してください: " & value)
 
 proc parseOptions(args: seq[string]): CliOptions =
   if args.len == 0 or args[0] in ["-h", "--help", "help"]:
@@ -51,14 +78,14 @@ proc parseOptions(args: seq[string]): CliOptions =
   var index = 2
   while index < args.len:
     let argument = args[index]
-    if argument == "--url":
-      if index + 1 >= args.len:
-        raise newException(ActkError, "--url の後に問題URLを指定してください")
-      result.url = args[index + 1]
-      inc index, 2
-    elif argument.startsWith("--url="):
-      result.url = argument[6 .. ^1]
-      inc index
+    if argument.isOption("--url"):
+      result.url = takeOptionValue(args, index, "--url", "問題URL")
+    elif argument.isOption("--tl"):
+      let value = takeOptionValue(args, index, "--tl", "制限時間（秒）")
+      result.timeLimitSeconds = parsePositiveFloat(value, "--tl")
+    elif argument.isOption("--error"):
+      let value = takeOptionValue(args, index, "--error", "許容誤差")
+      result.errorTolerance = parsePositiveFloat(value, "--error")
     elif argument == "--verbose":
       result.verbose = true
       inc index
@@ -80,7 +107,11 @@ proc main() =
       echo "READY  " & $initResult.created.len & " created, " &
         $initResult.skipped.len & " skipped"
     of commandTest:
-      if not runWorkflow(options.sourcePath, options.url, verbose = options.verbose):
+      var config = defaultWorkflowConfig()
+      if options.timeLimitSeconds > 0.0:
+        config.timeLimitSeconds = options.timeLimitSeconds
+      config.errorTolerance = options.errorTolerance
+      if not runWorkflow(options.sourcePath, options.url, config, verbose = options.verbose):
         quit(1)
   except ActkError as error:
     stderr.writeLine("[error] " & error.msg)

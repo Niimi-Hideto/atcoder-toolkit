@@ -104,7 +104,17 @@ FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
 
 REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`などを表示し、それ以外は`abnormal termination`と表示します。終了コードや標準エラーを含む元ログは`--verbose`で確認できます。
 
-表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。現在のローカル制限時間は1ケース2秒です。
+表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。ローカル制限時間は既定で1ケース2秒です。制限時間が長い問題では`--tl`で秒数を指定します。
+
+```bash
+actk test ABC_C/C484.cpp --tl 3
+```
+
+「絶対誤差または相対誤差が10^-6以下なら正解」のように小数を答える問題では、`--error`で許容誤差を指定します。指定しないと出力の完全一致で判定するため、正しい答えでもWAになることがあります。
+
+```bash
+actk test ABC_B/B484.cpp --error 1e-6
+```
 
 末尾の`_2`・`_3`など数字の接尾辞は復習回数として無視します。フォルダーの位置は判定に影響しないため、たとえば`ABC_Re_B/B474_2.cpp`は`B474.cpp`と同じ問題、鉄則本の章フォルダー内にある`A04_2.cpp`は`A04.cpp`と同じ問題として扱います。
 
@@ -119,10 +129,12 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 | `tessoku/A01.cpp` | `tessoku_book_a` |
 | `競技プログラミングの鉄則/01_アルゴリズムと計算量/A04_2.cpp` | `tessoku_book_d` |
 | `tessoku/B01.cpp` | `tessoku_book_bz` |
+| `tessoku/A06.cpp` | `math_and_algorithm_ai` |
+| `tessoku/B16.cpp` | `dp_a` |
 | `tessoku/A77.cpp` | `typical90_a` |
 | `tessoku/C18.cpp` | `typical90_s` |
 
-したがって鉄則本はURLを付けずに実行できます。
+鉄則本の演習ページには、他のコンテストの問題をそのまま掲載している番号が14問あります（`A06`・`A27`・`A29`・`A39`・`A50`・`A62`・`A63`・`A77`・`B07`・`B16`・`B28`・`B63`・`C09`・`C18`）。これらは掲載先の問題IDで判定するため、鉄則本はURLを付けずに実行できます。
 
 ```bash
 actk test tessoku/A01.cpp
@@ -148,6 +160,17 @@ actk test ABC_A/A484.cpp --verbose
 2. サンプルがなければ`oj download`で取得する
 3. `g++ -std=c++17 -O2 -Wall -Wextra`でコンパイルする
 4. `oj test`で全サンプルを実行し、結果を簡潔な形式へ整形する
+
+使うコマンドは環境変数で差し替えられます。たとえばmacOSの`g++`（Apple clang）で`bits/stdc++.h`が見つからない場合は、Homebrewの`g++-15`などを指定します。
+
+| 環境変数 | 既定値 | 用途 |
+|---|---|---|
+| `ACTK_CXX` | `g++` | コンパイラ |
+| `ACTK_OJ` | `oj` | `online-judge-tools`のコマンド |
+
+```bash
+ACTK_CXX=g++-15 actk test ABC_A/A484.cpp
+```
 
 ## テスト
 

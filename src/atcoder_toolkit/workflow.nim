@@ -7,6 +7,7 @@ type
     compiler*: string
     oj*: string
     timeLimitSeconds*: float
+    errorTolerance*: float  # 0なら完全一致で比較する
 
 proc defaultWorkflowConfig*(): WorkflowConfig =
   WorkflowConfig(
@@ -121,16 +122,16 @@ proc runWorkflow*(
     raise newException(ActkError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
 
   echo ""
-  let testResult = runner(
-    config.oj,
-    @[
-      "test",
-      "-d", testDir,
-      "-c", quoteShell(executablePath),
-      "-t", &"{config.timeLimitSeconds:.3f}",
-      "--no-print-input"
-    ]
-  )
+  var testArgs = @[
+    "test",
+    "-d", testDir,
+    "-c", quoteShell(executablePath),
+    "-t", &"{config.timeLimitSeconds:.3f}",
+    "--no-print-input"
+  ]
+  if config.errorTolerance > 0.0:
+    testArgs.add(["-e", $config.errorTolerance])
+  let testResult = runner(config.oj, testArgs)
   if verbose:
     showCommandOutput(testResult)
     echo ""
