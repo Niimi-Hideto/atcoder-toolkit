@@ -63,6 +63,41 @@ proc outputExecutablePath(buildDir, sourcePath: string): string =
   let executableName = changeFileExt(splitFile(sourcePath).name, ExeExt)
   buildDir / executableName
 
+proc validateSource(sourcePath: string) =
+  if not fileExists(sourcePath):
+    raise newException(ActkError, "C++ファイルが見つかりません: " & sourcePath)
+  if splitFile(sourcePath).ext.toLowerAscii() != ".cpp":
+    raise newException(ActkError, "現在対応している解答ファイルは .cpp だけです")
+
+proc prepareExecutablePath(resolvedSource: string): string =
+  let buildDir = findProjectRoot(resolvedSource) / ".actk" / "build"
+  createDir(buildDir)
+  outputExecutablePath(buildDir, resolvedSource)
+
+proc compileSolution(
+    resolvedSource, executablePath: string,
+    config: WorkflowConfig,
+    runner: CommandRunner,
+    verbose: bool
+  ): bool =
+  let compileStarted = getMonoTime()
+  let compileResult = runner(
+    config.compiler,
+    @["-std=c++17", "-O2", "-Wall", "-Wextra", resolvedSource, "-o", executablePath]
+  )
+  let compileSeconds = (getMonoTime() - compileStarted).inNanoseconds.float / 1_000_000_000.0
+  if compileResult.exitCode != 0:
+    echo "compile  FAILED  " & formatElapsed(compileSeconds)
+    showCommandOutput(compileResult)
+    return false
+  if verbose:
+    showCommandOutput(compileResult)
+  echo "compile  OK  " & formatElapsed(compileSeconds)
+
+  if not fileExists(executablePath):
+    raise newException(ActkError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
+  true
+
 proc runWorkflow*(
     sourcePath: string,
     explicitUrl = "",
@@ -70,21 +105,15 @@ proc runWorkflow*(
     runner: CommandRunner = runCommand,
     verbose = false
   ): bool =
-  if not fileExists(sourcePath):
-    raise newException(ActkError, "C++ファイルが見つかりません: " & sourcePath)
-  if splitFile(sourcePath).ext.toLowerAscii() != ".cpp":
-    raise newException(ActkError, "現在対応している解答ファイルは .cpp だけです")
+  validateSource(sourcePath)
 
   let resolvedSource = absolutePath(sourcePath)
   let problemInfo = resolveProblem(resolvedSource, explicitUrl)
   let projectRoot = findProjectRoot(resolvedSource)
-  let stateDir = projectRoot / ".actk"
-  let testDir = stateDir / "tests" / problemInfo.taskId
-  let buildDir = stateDir / "build"
-  let executablePath = outputExecutablePath(buildDir, resolvedSource)
+  let testDir = projectRoot / ".actk" / "tests" / problemInfo.taskId
+  let executablePath = prepareExecutablePath(resolvedSource)
 
   createDir(testDir)
-  createDir(buildDir)
 
   var sampleCount: int
   if not hasCompleteSampleCache(testDir):
@@ -112,22 +141,8 @@ proc runWorkflow*(
     sampleCount = samplePairCount(testDir)
     echo "samples  " & $sampleCount & " cached"
 
-  let compileStarted = getMonoTime()
-  let compileResult = runner(
-    config.compiler,
-    @["-std=c++17", "-O2", "-Wall", "-Wextra", resolvedSource, "-o", executablePath]
-  )
-  let compileSeconds = (getMonoTime() - compileStarted).inNanoseconds.float / 1_000_000_000.0
-  if compileResult.exitCode != 0:
-    echo "compile  FAILED  " & formatElapsed(compileSeconds)
-    showCommandOutput(compileResult)
+  if not compileSolution(resolvedSource, executablePath, config, runner, verbose):
     return false
-  if verbose:
-    showCommandOutput(compileResult)
-  echo "compile  OK  " & formatElapsed(compileSeconds)
-
-  if not fileExists(executablePath):
-    raise newException(ActkError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
 
   echo ""
   var testArgs = @[
@@ -156,3 +171,36 @@ proc runWorkflow*(
   echo renderReport(report, config.timeLimitSeconds)
   allPassed(report)
 
+# macOS・Linuxでシグナルにより終了したときの終了コード（128 + シグナル番号）
+proc exitCodeReason*(exitCode: int): string =
+  case exitCode
+  of 133: "trap（nullポインタ参照などの未定義動作）"
+  of 134: "abort（例外やassertの失敗など）"
+  of 136: "floating-point exception（0除算など）"
+  of 138: "bus error（不正なメモリアクセス）"
+  of 139: "segmentation fault（範囲外アクセスなど）"
+  else: ""
+
+proc runInteractive*(
+    sourcePath: string,
+    config = defaultWorkflowConfig(),
+    runner: CommandRunner = runCommand,
+    launcher: InteractiveLauncher = launchInteractive,
+    verbose = false
+  ): bool =
+  validateSource(sourcePath)
+
+  let resolvedSource = absolutePath(sourcePath)
+  let executablePath = prepareExecutablePath(resolvedSource)
+  if not compileSolution(resolvedSource, executablePath, config, runner, verbose):
+    return false
+
+  echo ""
+  echo "run      入力を打ってEnter（入力の終わりは Ctrl-D）"
+  echo "----------------------------------------"
+  stdout.flushFile()
+  let exitCode = launcher(executablePath)
+  echo "----------------------------------------"
+  let reason = exitCodeReason(exitCode)
+  echo "exit     " & $exitCode & (if reason.len > 0: "  " & reason else: "")
+  exitCode == 0

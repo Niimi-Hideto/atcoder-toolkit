@@ -9,10 +9,12 @@ Usage:
   actk init <ABC contest number>
   actk test <solution.cpp> [--url <AtCoder problem URL>] [--tl <seconds>]
                            [--error <tolerance>] [--verbose]
+  actk run <solution.cpp> [--verbose]
 
 Examples:
   actk init 484
   actk test ABC_A/A484.cpp
+  actk run ABC_A/A484.cpp
   actk test ABC_C/C484.cpp --tl 3
   actk test ABC_B/B484.cpp --error 1e-6
   actk test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
@@ -21,7 +23,8 @@ Examples:
 type
   CommandKind = enum
     commandInit,
-    commandTest
+    commandTest,
+    commandRun
 
   CliOptions = object
     command: CommandKind
@@ -68,16 +71,25 @@ proc parseOptions(args: seq[string]): CliOptions =
     result.contest = args[1]
     return
 
-  if args[0] != "test":
+  case args[0]
+  of "test": result.command = commandTest
+  of "run": result.command = commandRun
+  else:
     raise newException(ActkError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
   if args.len < 2:
     raise newException(ActkError, "C++ファイルを指定してください\n\n" & Usage)
+  if args[1].startsWith("--"):
+    raise newException(
+      ActkError,
+      "オプションはC++ファイルの後ろに書いてください。例: actk " & args[0] & " ABC_A/A484.cpp " & args[1]
+    )
 
-  result.command = commandTest
   result.sourcePath = args[1]
   var index = 2
   while index < args.len:
     let argument = args[index]
+    if result.command == commandRun and argument != "--verbose":
+      raise newException(ActkError, "runで使えるオプションは --verbose だけです: " & argument)
     if argument.isOption("--url"):
       result.url = takeOptionValue(args, index, "--url", "問題URL")
     elif argument.isOption("--tl"):
@@ -112,6 +124,9 @@ proc main() =
         config.timeLimitSeconds = options.timeLimitSeconds
       config.errorTolerance = options.errorTolerance
       if not runWorkflow(options.sourcePath, options.url, config, verbose = options.verbose):
+        quit(1)
+    of commandRun:
+      if not runInteractive(options.sourcePath, verbose = options.verbose):
         quit(1)
   except ActkError as error:
     stderr.writeLine("[error] " & error.msg)

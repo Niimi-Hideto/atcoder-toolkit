@@ -251,6 +251,61 @@ suite "workflow":
     check errorIndex >= 0
     check parseFloat(testArgs[errorIndex + 1]) == 1e-6
 
+suite "interactive run":
+  setup:
+    let tempRoot = getTempDir() / ("actk-run-" & $getTime().toUnix())
+    let sourcePath = tempRoot / "ABC_A" / "A997.cpp"
+    createDir(tempRoot / ".git")
+    createDir(sourcePath.parentDir)
+    writeFile(sourcePath, "int main() { return 0; }\n")
+
+  teardown:
+    if dirExists(tempRoot):
+      removeDir(tempRoot)
+
+  test "compiles every time and runs the fresh executable without oj":
+    var executables: seq[string] = @[]
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      executables.add(executable)
+      if executable == "fake-cxx":
+        writeFile(args[args.find("-o") + 1], "fake executable")
+      CommandResult(output: "", exitCode: 0)
+
+    var launched: seq[string] = @[]
+    let fakeLauncher: InteractiveLauncher = proc(executable: string): int =
+      launched.add(executable)
+      0
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 2.0)
+    check runInteractive(sourcePath, config, fakeRunner, fakeLauncher)
+    check runInteractive(sourcePath, config, fakeRunner, fakeLauncher)
+    check executables == @["fake-cxx", "fake-cxx"]
+    let expectedExecutable = tempRoot / ".actk" / "build" / changeFileExt("A997", ExeExt)
+    check launched == @[expectedExecutable, expectedExecutable]
+
+  test "a failed compile does not run the old executable":
+    let failingRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      CommandResult(output: "error: expected ';'", exitCode: 1)
+    var launched = false
+    let fakeLauncher: InteractiveLauncher = proc(executable: string): int =
+      launched = true
+      0
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 2.0)
+    check not runInteractive(sourcePath, config, failingRunner, fakeLauncher)
+    check not launched
+
+  test "a crash is reported as a failure with a readable reason":
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      writeFile(args[args.find("-o") + 1], "fake executable")
+      CommandResult(output: "", exitCode: 0)
+    let crashingLauncher: InteractiveLauncher = proc(executable: string): int = 139
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 2.0)
+    check not runInteractive(sourcePath, config, fakeRunner, crashingLauncher)
+    check "segmentation fault" in exitCodeReason(139)
+    check exitCodeReason(3) == ""
+
 suite "compact report":
   test "two-digit case counts align the current case number":
     var report = TestReport()

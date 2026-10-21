@@ -9,6 +9,9 @@ type
 
   CommandRunner* = proc(executable: string, args: seq[string]): CommandResult {.closure.}
 
+  # 入出力をターミナルにつないだまま実行し、終了コードを返す
+  InteractiveLauncher* = proc(executable: string): int {.closure.}
+
 proc runCommand*(executable: string, args: seq[string]): CommandResult =
   try:
     let command = quoteShellCommand(@[executable] & args)
@@ -18,5 +21,16 @@ proc runCommand*(executable: string, args: seq[string]): CommandResult =
     raise newException(
       ActkError,
       "コマンドを起動できません: " & executable & "\n" & error.msg
+    )
+
+proc launchInteractive*(executable: string): int =
+  try:
+    let process = startProcess(executable, options = {poParentStreams})
+    defer: process.close()
+    result = process.waitForExit()
+  except OSError as error:
+    raise newException(
+      ActkError,
+      "実行ファイルを起動できません: " & executable & "\n" & error.msg
     )
 
