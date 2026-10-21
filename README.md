@@ -1,6 +1,6 @@
 # AtCoder Toolkit
 
-`ackt`は、AtCoderのサンプルを初回だけ取得し、C++の解答をコンパイルして全サンプルを実行するNim製ツールキットです。
+`ackt`は、ABCの解答ファイルを準備し、AtCoderのサンプルを初回だけ取得して、C++の解答をコンパイル・テストするNim製ツールキットです。
 
 ```text
 ackt test ABC_A/A484.cpp
@@ -11,13 +11,14 @@ ackt test ABC_A/A484.cpp
 - `A484.cpp`というファイル名から`abc484_a`を判定
 - `A484_2.cpp`のような復習用ファイルを元の問題として判定
 - `A01.cpp`・`B01.cpp`・`C01.cpp`形式から鉄則本の問題を判定
+- `template.cpp`からABCのA〜Dファイルを一括作成
 - 初回だけ公開問題ページからサンプルを取得
 - 取得完了を確認できたサンプルは`.ackt/tests/<task-id>/`から再利用
 - C++17としてコンパイル
 - 全サンプルを実行し、`online-judge-tools`で期待値と比較
 - `[1/10] AC  6 ms`形式で判定とローカル実行時間を表示
 - WAでは最初に異なる行、REでは終了理由、TLEでは制限時間を簡潔に表示
-- ログイン・提出・コード生成は行わない
+- ログイン・提出・AIによる解答生成は行わない
 
 ## 必要なもの
 
@@ -42,6 +43,35 @@ nimble install
 ## 使い方
 
 既存の`Atcorder`リポジトリのルートで実行します。
+
+### コンテスト前の準備
+
+```bash
+ackt init 484
+```
+
+ルートの`template.cpp`をコピーして、次の4ファイルを作成します。`ackt init abc484`でも同じ結果になります。
+
+```text
+ABC_A/A484.cpp
+ABC_B/B484.cpp
+ABC_C/C484.cpp
+ABC_D/D484.cpp
+```
+
+```text
+contest  abc484
+created  ABC_A/A484.cpp
+created  ABC_B/B484.cpp
+created  ABC_C/C484.cpp
+created  ABC_D/D484.cpp
+
+READY  4 created, 0 skipped
+```
+
+既存ファイルは上書きせず`skipped`と表示します。ネットワーク通信やサンプル取得は行いません。
+
+### サンプルテスト
 
 ```bash
 ackt test ABC_A/A484.cpp

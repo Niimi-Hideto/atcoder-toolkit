@@ -1,6 +1,56 @@
 import std/[os, strutils, times, unittest]
 
-import atcoder_toolkit/[errors, problem, processes, reporting, workflow]
+import atcoder_toolkit/[errors, initializer, problem, processes, reporting, workflow]
+
+suite "contest initialization":
+  test "creates A through D from template without overwriting existing files":
+    let tempRoot = getTempDir() / ("ackt-init-create-" & $getTime().toUnix())
+    createDir(tempRoot)
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
+
+    let templateText = "#include <bits/stdc++.h>\nint main() {}\n"
+    writeFile(tempRoot / "template.cpp", templateText)
+
+    let firstResult = initializeContest("484", tempRoot)
+    check firstResult.contestId == "abc484"
+    check firstResult.created == @[
+      "ABC_A/A484.cpp",
+      "ABC_B/B484.cpp",
+      "ABC_C/C484.cpp",
+      "ABC_D/D484.cpp"
+    ]
+    check firstResult.skipped.len == 0
+    for relativePath in firstResult.created:
+      check readFile(tempRoot / relativePath) == templateText
+
+    writeFile(tempRoot / "ABC_A" / "A484.cpp", "keep this answer\n")
+    let secondResult = initializeContest("abc484", tempRoot)
+    check secondResult.created.len == 0
+    check secondResult.skipped == firstResult.created
+    check readFile(tempRoot / "ABC_A" / "A484.cpp") == "keep this answer\n"
+
+  test "short contest numbers are padded to three digits":
+    check normalizeContestNumber("86") == "086"
+    check normalizeContestNumber("ABC086") == "086"
+    check normalizeContestNumber("abc484") == "484"
+
+  test "invalid contest numbers and missing templates are rejected":
+    expect AcktError:
+      discard normalizeContestNumber("arc484")
+    expect AcktError:
+      discard normalizeContestNumber("abc")
+    expect AcktError:
+      discard normalizeContestNumber("000")
+
+    let tempRoot = getTempDir() / ("ackt-init-missing-" & $getTime().toUnix())
+    createDir(tempRoot)
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
+    expect AcktError:
+      discard initializeContest("484", tempRoot)
 
 suite "problem resolution":
   test "current ABC file convention is inferred":
