@@ -1,6 +1,6 @@
 import std/[monotimes, os, strformat, strutils, times]
 
-import ./[errors, problem, processes, reporting]
+import ./[errors, problem, processes, reporting, warnings]
 
 type
   WorkflowConfig* = object
@@ -74,12 +74,17 @@ proc prepareExecutablePath(resolvedSource: string): string =
   createDir(buildDir)
   outputExecutablePath(buildDir, resolvedSource)
 
+type
+  CompileOutcome = object
+    succeeded: bool
+    warnings: seq[CompilerWarning]
+
 proc compileSolution(
     resolvedSource, executablePath: string,
     config: WorkflowConfig,
     runner: CommandRunner,
     verbose: bool
-  ): bool =
+  ): CompileOutcome =
   let compileStarted = getMonoTime()
   let compileResult = runner(
     config.compiler,
@@ -89,14 +94,26 @@ proc compileSolution(
   if compileResult.exitCode != 0:
     echo "compile  FAILED  " & formatElapsed(compileSeconds)
     showCommandOutput(compileResult)
-    return false
+    return CompileOutcome(succeeded: false)
   if verbose:
     showCommandOutput(compileResult)
-  echo "compile  OK  " & formatElapsed(compileSeconds)
+
+  result = CompileOutcome(
+    succeeded: true,
+    warnings: parseCompilerWarnings(compileResult.output)
+  )
+  var compileLine = "compile  OK  " & formatElapsed(compileSeconds)
+  if result.warnings.len > 0:
+    compileLine.add("  (warning " & $result.warnings.len & ")")
+  echo compileLine
 
   if not fileExists(executablePath):
     raise newException(ActkError, "コンパイル後の実行ファイルが見つかりません: " & executablePath)
-  true
+
+proc showWarnings(warnings: seq[CompilerWarning]) =
+  if warnings.len > 0:
+    echo ""
+    echo renderWarnings(warnings)
 
 proc runWorkflow*(
     sourcePath: string,
@@ -141,7 +158,8 @@ proc runWorkflow*(
     sampleCount = samplePairCount(testDir)
     echo "samples  " & $sampleCount & " cached"
 
-  if not compileSolution(resolvedSource, executablePath, config, runner, verbose):
+  let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
+  if not compiled.succeeded:
     return false
 
   echo ""
@@ -169,6 +187,7 @@ proc runWorkflow*(
     )
 
   echo renderReport(report, config.timeLimitSeconds)
+  showWarnings(compiled.warnings)
   allPassed(report)
 
 # macOS・Linuxでシグナルにより終了したときの終了コード（128 + シグナル番号）
@@ -192,7 +211,8 @@ proc runInteractive*(
 
   let resolvedSource = absolutePath(sourcePath)
   let executablePath = prepareExecutablePath(resolvedSource)
-  if not compileSolution(resolvedSource, executablePath, config, runner, verbose):
+  let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
+  if not compiled.succeeded:
     return false
 
   echo ""
@@ -203,4 +223,5 @@ proc runInteractive*(
   echo "----------------------------------------"
   let reason = exitCodeReason(exitCode)
   echo "exit     " & $exitCode & (if reason.len > 0: "  " & reason else: "")
+  showWarnings(compiled.warnings)
   exitCode == 0

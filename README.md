@@ -18,6 +18,7 @@ actk test ABC_A/A484.cpp
 - WAでは最初に異なる行、REでは終了理由、TLEでは制限時間を簡潔に表示
 - 制限時間（`--tl`）と小数の許容誤差（`--error`）を指定可能
 - コンパイルしてから、入力を手打ちで試せる（`actk run`）
+- コンパイラの警告を、行番号順に1件1行で表示
 - ログイン・提出・AIによる解答生成は行わない
 
 ## 導入
@@ -128,6 +129,27 @@ FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
 REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`などを表示し、それ以外は`abnormal termination`と表示します。
 
 表示される時間はローカルでの計測値で、AtCoder上の実行時間とは一致しません。
+
+### コンパイラの警告
+
+コンパイルに成功しても警告があれば、件数をコンパイル行に、内容を結果の後ろに表示します（`test`・`run`共通）。
+
+```text
+compile  OK  462 ms  (warning 3)
+...
+PASS  3/3  test time 34 ms
+
+warning  3
+  L8   unused variable 'b'
+  L12  variable 'sum' is uninitialized when used here
+  L14  '&&' within '||'
+```
+
+- 行番号の順に、コンパイラの原文を1件1行で表示します
+- 直し方の提案（`note:`）は表示しません。元の出力は`--verbose`で確認できます
+- 6件以上ある場合は5件まで表示し、残りは件数だけ表示します
+
+サンプルがACでも、初期化していない変数のように提出先で結果が変わる原因になる警告があります。ACのときも確認してください。
 
 ### 手打ちで試す
 

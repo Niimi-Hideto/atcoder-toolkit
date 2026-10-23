@@ -1,6 +1,6 @@
 import std/[os, strutils, times, unittest]
 
-import atcoder_toolkit/[errors, initializer, problem, processes, reporting, workflow]
+import atcoder_toolkit/[errors, initializer, problem, processes, reporting, warnings, workflow]
 
 suite "contest initialization":
   test "creates A through D from template without overwriting existing files":
@@ -250,6 +250,51 @@ suite "workflow":
     let errorIndex = testArgs.find("-e")
     check errorIndex >= 0
     check parseFloat(testArgs[errorIndex + 1]) == 1e-6
+
+suite "compiler warnings":
+  test "clang warnings are sorted by line without notes or flags":
+    let clangOutput = """
+/work/ABC_C/C484.cpp:14:15: warning: '&&' within '||' [-Wlogical-op-parentheses]
+   14 |     if (n > 0 && sum > 10 || n == 0) cout << sum << endl;
+      |         ~~~~~~^~~~~~~~~~~ ~~
+/work/ABC_C/C484.cpp:14:15: note: place parentheses around the '&&' expression to silence this warning
+/work/ABC_C/C484.cpp:8:9: warning: unused variable 'b' [-Wunused-variable]
+    8 |     int b = 0;
+/work/ABC_C/C484.cpp:12:9: warning: variable 'sum' is uninitialized when used here [-Wuninitialized]
+/work/ABC_C/C484.cpp:9:18: note: initialize the variable 'sum' to silence this warning
+3 warnings generated.
+"""
+    let parsed = parseCompilerWarnings(clangOutput)
+    check parsed == @[
+      CompilerWarning(line: 8, message: "unused variable 'b'"),
+      CompilerWarning(line: 12, message: "variable 'sum' is uninitialized when used here"),
+      CompilerWarning(line: 14, message: "'&&' within '||'")
+    ]
+
+  test "gcc warnings with a Windows path are parsed":
+    let gccOutput = "C:\\Users\\me\\Atcorder\\ABC_A\\A484.cpp: In function 'int main()':\n" &
+      "C:\\Users\\me\\Atcorder\\ABC_A\\A484.cpp:10:23: warning: comparison of integer " &
+      "expressions of different signedness: 'int' and 'std::vector<int>::size_type' [-Wsign-compare]\n"
+    let parsed = parseCompilerWarnings(gccOutput)
+    check parsed.len == 1
+    check parsed[0].line == 10
+    check parsed[0].message.startsWith("comparison of integer expressions")
+    check "[-W" notin parsed[0].message
+
+  test "no warnings render as nothing":
+    check parseCompilerWarnings("").len == 0
+    check renderWarnings(@[]) == ""
+
+  test "rendering aligns line labels and caps the list at five":
+    var many: seq[CompilerWarning] = @[]
+    for line in [3, 8, 9, 10, 12, 14, 20]:
+      many.add(CompilerWarning(line: line, message: "message " & $line))
+    let rendered = renderWarnings(many)
+    check rendered.splitLines()[0] == "warning  7"
+    check "  L3   message 3" in rendered
+    check "  L12  message 12" in rendered
+    check "message 14" notin rendered
+    check "ほか2件（--verbose で表示）" in rendered
 
 suite "interactive run":
   setup:
