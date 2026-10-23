@@ -236,15 +236,21 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
     else:
       lines.add(resultLine)
 
+  # ケースの順にACを■、それ以外を□で並べ、どのケースが落ちたかを1行で見せる
+  var marks = ""
+  for sample in report.results:
+    marks.add(if sample.verdict == verdictAc: "■" else: "□")
+
   lines.add("")
   if passed == total:
-    lines.add("PASS  " & $passed & "/" & $total & "  test time " & formatElapsed(totalSeconds))
+    lines.add("PASS  " & marks & "  " & $passed & "/" & $total &
+      "  test time " & formatElapsed(totalSeconds))
   else:
     var counts: seq[string] = @[]
     if wrongAnswers > 0: counts.add("WA " & $wrongAnswers)
     if runtimeErrors > 0: counts.add("RE " & $runtimeErrors)
     if timeouts > 0: counts.add("TLE " & $timeouts)
-    lines.add("FAIL  " & $passed & "/" & $total & " passed  (" & counts.join(", ") & ")")
+    lines.add("FAIL  " & marks & "  " & $passed & "/" & $total & "  (" & counts.join(", ") & ")")
     lines.add("      test time " & formatElapsed(totalSeconds))
 
   lines.join("\n")

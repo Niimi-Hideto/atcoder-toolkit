@@ -108,10 +108,10 @@ compile  OK  238 ms
 [1/2] AC     27 ms
 [2/2] AC      7 ms
 
-PASS  2/2  test time 34 ms
+PASS  ■■  2/2  test time 34 ms
 ```
 
-失敗しても残りのサンプルを実行し、最後にまとめます。
+失敗しても残りのサンプルを実行し、最後にまとめます。最後の行の■□はケースの順に並んだ判定で、■がAC、□がAC以外です。
 
 ```text
 [1/4] AC     27 ms
@@ -122,7 +122,7 @@ PASS  2/2  test time 34 ms
          reason: abnormal termination
 [4/4] TLE   >2.0 s
 
-FAIL  1/4 passed  (WA 1, RE 1, TLE 1)
+FAIL  ■□□□  1/4  (WA 1, RE 1, TLE 1)
       test time 2.06 s
 ```
 
@@ -137,7 +137,7 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 ```text
 compile  OK  462 ms  (warning 3)
 ...
-PASS  3/3  test time 34 ms
+PASS  ■■■  3/3  test time 34 ms
 
 warning  3
   L8   unused variable 'b'

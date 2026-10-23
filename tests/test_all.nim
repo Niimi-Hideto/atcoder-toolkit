@@ -363,7 +363,7 @@ suite "compact report":
     let rendered = renderReport(report, 2.0)
     check "[ 1/10] AC" in rendered
     check "[10/10] AC" in rendered
-    check "PASS  10/10  test time 60 ms" in rendered
+    check "PASS  ■■■■■■■■■■  10/10  test time 60 ms" in rendered
 
   test "AC, WA, RE and TLE are parsed and rendered":
     let rawOutput = """
@@ -421,7 +421,7 @@ expected:
     check "exit code: 3" notin rendered
     check "stderr: boom" notin rendered
     check "[4/4] TLE" in rendered
-    check "FAIL  1/4 passed  (WA 1, RE 1, TLE 1)" in rendered
+    check "FAIL  ■□□□  1/4  (WA 1, RE 1, TLE 1)" in rendered
 
   test "known runtime errors get a concise reason":
     let segfaultReport = TestReport(results: @[
