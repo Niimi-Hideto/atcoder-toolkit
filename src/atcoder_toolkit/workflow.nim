@@ -161,6 +161,7 @@ proc runWorkflow*(
   let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
   if not compiled.succeeded:
     return false
+  showWarnings(compiled.warnings)
 
   echo ""
   var testArgs = @[
@@ -187,7 +188,6 @@ proc runWorkflow*(
     )
 
   echo renderReport(report, config.timeLimitSeconds)
-  showWarnings(compiled.warnings)
   allPassed(report)
 
 # macOS・Linuxでシグナルにより終了したときの終了コード（128 + シグナル番号）
@@ -214,6 +214,7 @@ proc runInteractive*(
   let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
   if not compiled.succeeded:
     return false
+  showWarnings(compiled.warnings)
 
   echo ""
   echo "run      入力を打ってEnter（入力の終わりは Ctrl-D）"
@@ -223,5 +224,4 @@ proc runInteractive*(
   echo "----------------------------------------"
   let reason = exitCodeReason(exitCode)
   echo "exit     " & $exitCode & (if reason.len > 0: "  " & reason else: "")
-  showWarnings(compiled.warnings)
   exitCode == 0

@@ -132,17 +132,19 @@ REでは、判別できる場合は`segmentation fault`や`heap-buffer-overflow`
 
 ### コンパイラの警告
 
-コンパイルに成功しても警告があれば、件数をコンパイル行に、内容を結果の後ろに表示します（`test`・`run`共通）。
+コンパイルに成功しても警告があれば、件数をコンパイル行に、内容をそのすぐ下に表示します（`test`・`run`共通）。判定（`test`）や終了コード（`run`）は常に最後の行に出ます。
 
 ```text
 compile  OK  462 ms  (warning 3)
-...
-PASS  ■■■  3/3  test time 34 ms
 
 warning  3
   L8   unused variable 'b'
   L12  variable 'sum' is uninitialized when used here
   L14  '&&' within '||'
+
+[1/3] AC     27 ms
+...
+PASS  ■■■  3/3  test time 34 ms
 ```
 
 - 行番号の順に、コンパイラの原文を1件1行で表示します
