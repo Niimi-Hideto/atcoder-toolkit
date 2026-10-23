@@ -1,4 +1,4 @@
-import std/[os, strutils, times, unittest]
+import std/[monotimes, os, strutils, times, unittest]
 
 import atcoder_toolkit/[errors, initializer, problem, processes, reporting, warnings, workflow]
 
@@ -250,6 +250,79 @@ suite "workflow":
     let errorIndex = testArgs.find("-e")
     check errorIndex >= 0
     check parseFloat(testArgs[errorIndex + 1]) == 1e-6
+
+suite "warm-up before measuring":
+  test "the fresh executable is started once with the first sample before oj test":
+    let tempRoot = getTempDir() / ("actk-test-warmup-" & $getTime().toUnix())
+    let sourcePath = tempRoot / "ABC_A" / "A996.cpp"
+    createDir(tempRoot / ".git")
+    createDir(sourcePath.parentDir)
+    writeFile(sourcePath, "int main() { return 0; }\n")
+    defer:
+      if dirExists(tempRoot):
+        removeDir(tempRoot)
+
+    var events: seq[string] = @[]
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      if args.len > 0 and args[0] == "download":
+        let testDir = args[args.find("-d") + 1]
+        for index in 1 .. 2:
+          writeFile(testDir / ("sample-" & $index & ".in"), "1\n")
+          writeFile(testDir / ("sample-" & $index & ".out"), "1\n")
+      elif executable == "fake-cxx":
+        events.add("compile")
+        writeFile(args[args.find("-o") + 1], "fake executable")
+      elif args.len > 0 and args[0] == "test":
+        events.add("oj test")
+        return CommandResult(
+          output: "[INFO] sample-1\n[INFO] time: 0.006 sec\n[SUCCESS] AC\n" &
+            "[INFO] sample-2\n[INFO] time: 0.005 sec\n[SUCCESS] AC\n",
+          exitCode: 0
+        )
+      CommandResult(output: "", exitCode: 0)
+
+    var warmedInput = ""
+    var warmedTimeout = 0.0
+    let fakeWarmUp: WarmUpRunner = proc(executable, inputPath: string, timeoutSeconds: float) =
+      events.add("warm-up")
+      warmedInput = inputPath
+      warmedTimeout = timeoutSeconds
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 3.0)
+    check runWorkflow(sourcePath, config = config, runner = fakeRunner, warmUp = fakeWarmUp)
+    check events == @["compile", "warm-up", "oj test"]
+    check warmedInput.extractFilename == "sample-1.in"
+    check warmedTimeout == 3.0
+
+  when not defined(windows):
+    test "a program that never finishes is stopped at the time limit":
+      let tempRoot = getTempDir() / ("actk-warmup-hang-" & $getTime().toUnix())
+      createDir(tempRoot)
+      defer:
+        if dirExists(tempRoot):
+          removeDir(tempRoot)
+      let scriptPath = tempRoot / "hang"
+      writeFile(scriptPath, "#!/bin/sh\nsleep 5\n")
+      setFilePermissions(scriptPath, {fpUserRead, fpUserWrite, fpUserExec})
+      writeFile(tempRoot / "sample-1.in", "1\n")
+
+      let started = getMonoTime()
+      warmUpExecutable(scriptPath, tempRoot / "sample-1.in", 0.2)
+      check (getMonoTime() - started).inMilliseconds < 2000
+
+    test "a program that exits without reading input does not break the warm-up":
+      let tempRoot = getTempDir() / ("actk-warmup-noread-" & $getTime().toUnix())
+      createDir(tempRoot)
+      defer:
+        if dirExists(tempRoot):
+          removeDir(tempRoot)
+      let scriptPath = tempRoot / "noread"
+      writeFile(scriptPath, "#!/bin/sh\necho Yes\n")
+      setFilePermissions(scriptPath, {fpUserRead, fpUserWrite, fpUserExec})
+      writeFile(tempRoot / "sample-1.in", repeat("1 ", 100_000) & "\n")
+
+      warmUpExecutable(scriptPath, tempRoot / "sample-1.in", 2.0)
+      check true
 
 suite "compiler warnings":
   test "clang warnings are sorted by line without notes or flags":

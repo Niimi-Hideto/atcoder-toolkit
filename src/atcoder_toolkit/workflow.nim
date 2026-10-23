@@ -1,4 +1,4 @@
-import std/[monotimes, os, strformat, strutils, times]
+import std/[algorithm, monotimes, os, strformat, strutils, times]
 
 import ./[errors, problem, processes, reporting, warnings]
 
@@ -39,6 +39,15 @@ proc samplePairCount*(testDir: string): int =
       let outputPath = changeFileExt(path, "out")
       if fileExists(outputPath):
         inc result
+
+proc firstSampleInput(testDir: string): string =
+  var inputs: seq[string] = @[]
+  for kind, path in walkDir(testDir):
+    if kind == pcFile and path.endsWith(".in") and splitFile(path).name.startsWith("sample-"):
+      inputs.add(path)
+  if inputs.len > 0:
+    inputs.sort()
+    result = inputs[0]
 
 proc cacheMarkerPath(testDir: string): string =
   testDir / ".download-complete"
@@ -120,7 +129,8 @@ proc runWorkflow*(
     explicitUrl = "",
     config = defaultWorkflowConfig(),
     runner: CommandRunner = runCommand,
-    verbose = false
+    verbose = false,
+    warmUp: WarmUpRunner = warmUpExecutable
   ): bool =
   validateSource(sourcePath)
 
@@ -161,6 +171,10 @@ proc runWorkflow*(
   let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
   if not compiled.succeeded:
     return false
+
+  let warmUpInput = firstSampleInput(testDir)
+  if warmUpInput.len > 0:
+    warmUp(executablePath, warmUpInput, config.timeLimitSeconds)
 
   echo ""
   var testArgs = @[
