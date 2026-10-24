@@ -496,6 +496,69 @@ expected:
     check "[4/4] TLE" in rendered
     check "FAIL  ■□□□  1/4  (WA 1, RE 1, TLE 1)" in rendered
 
+  test "multi-line WA shows every line with differing lines marked":
+    let report = TestReport(results: @[SampleResult(
+      name: "sample-1",
+      verdict: verdictWa,
+      seconds: 0.009,
+      expectedLines: @["3", "7", "1", "12", "0"],
+      actualLines: @["3", "8", "1", "10", "0"]
+    )])
+    let rendered = renderReport(report, 2.0)
+    check "(5行中2行が違う)" in rendered
+    check "            expected  got" in rendered
+    check "         1  3         3" in rendered
+    check "       > 2  7         8" in rendered
+    check "         3  1         1" in rendered
+    check "       > 4  12        10" in rendered
+    check "         5  0         0" in rendered
+
+  test "missing or extra lines are shown as (なし)":
+    let report = TestReport(results: @[SampleResult(
+      name: "sample-1",
+      verdict: verdictWa,
+      seconds: 0.005,
+      expectedLines: @["Yes", "No", "Yes"],
+      actualLines: @["Yes", "No"]
+    )])
+    let rendered = renderReport(report, 2.0)
+    check "(3行中1行が違う)" in rendered
+    check "       > 3  Yes       (なし)" in rendered
+
+  test "long WA output keeps only differing lines and their neighbors":
+    var expected: seq[string] = @[]
+    var actual: seq[string] = @[]
+    for index in 1 .. 30:
+      expected.add($index)
+      actual.add(if index == 15: "x" else: $index)
+    let report = TestReport(results: @[SampleResult(
+      name: "sample-1",
+      verdict: verdictWa,
+      seconds: 0.005,
+      expectedLines: expected,
+      actualLines: actual
+    )])
+    let rendered = renderReport(report, 2.0)
+    check "(30行中1行が違う)" in rendered
+    check "        14  14" in rendered
+    check "      > 15  15" in rendered
+    check "        16  16" in rendered
+    check "        13  13" notin rendered
+    check "ほか27行（--verbose で全文）" in rendered
+
+  test "single-line WA keeps the short expected/got form":
+    let report = TestReport(results: @[SampleResult(
+      name: "sample-1",
+      verdict: verdictWa,
+      seconds: 0.005,
+      expectedLines: @["42"],
+      actualLines: @["41"]
+    )])
+    let rendered = renderReport(report, 2.0)
+    check "         expected: 42" in rendered
+    check "         got:      41" in rendered
+    check "行が違う" notin rendered
+
   test "known runtime errors get a concise reason":
     let segfaultReport = TestReport(results: @[
       SampleResult(

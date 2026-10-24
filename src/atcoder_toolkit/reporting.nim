@@ -155,6 +155,73 @@ proc firstDifference(sample: SampleResult): tuple[lineNumber: int, expected, act
 
   (1, "(output differs)", "(output differs)")
 
+const
+  MaxTableRows = 20
+  MaxExpectedColumnWidth = 40
+  MissingLine = "(なし)"
+  TableIndent = "       "
+
+# 複数行の答えのWAを、expectedとgotを並べた表にする。違う行には「>」を付ける
+proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
+  let expectedLines = sample.expectedLines
+  let actualLines = sample.actualLines
+  let lineCount = max(expectedLines.len, actualLines.len)
+
+  if lineCount <= 1:
+    let difference = firstDifference(sample)
+    return @[
+      resultLine,
+      "         expected: " & difference.expected,
+      "         got:      " & difference.actual
+    ]
+
+  var differs = newSeq[bool](lineCount)
+  var differCount = 0
+  for index in 0 ..< lineCount:
+    differs[index] = index >= expectedLines.len or index >= actualLines.len or
+      expectedLines[index] != actualLines[index]
+    if differs[index]:
+      inc differCount
+
+  # 長い答えは、違う行とその前後1行だけを残す
+  var shownIndices: seq[int] = @[]
+  for index in 0 ..< lineCount:
+    let nearDifference = (index > 0 and differs[index - 1]) or differs[index] or
+      (index + 1 < lineCount and differs[index + 1])
+    if lineCount <= MaxTableRows or nearDifference:
+      shownIndices.add(index)
+  if shownIndices.len > MaxTableRows:
+    shownIndices.setLen(MaxTableRows)
+
+  proc cell(lines: seq[string], index: int): string =
+    if index < lines.len: visibleLine(lines[index]) else: MissingLine
+
+  var expectedWidth = "expected".len
+  for index in shownIndices:
+    expectedWidth = max(expectedWidth, cell(expectedLines, index).len)
+  expectedWidth = min(expectedWidth, MaxExpectedColumnWidth)
+  let numberWidth = ($lineCount).len
+
+  let summary =
+    if differCount == 0: "  (" & $lineCount & "行とも同じに見える。空白の違いかもしれない)"
+    else: "  (" & $lineCount & "行中" & $differCount & "行が違う)"
+  result.add(resultLine & summary)
+  result.add(TableIndent & "  " & repeat(' ', numberWidth) & "  " &
+    alignLeft("expected", expectedWidth) & "  got")
+
+  var previous = -1
+  for index in shownIndices:
+    if previous >= 0 and index > previous + 1:
+      result.add(TableIndent & "  " & "...")
+    let marker = if differs[index]: "> " else: "  "
+    result.add(TableIndent & marker & align($(index + 1), numberWidth) & "  " &
+      alignLeft(cell(expectedLines, index), expectedWidth) & "  " & cell(actualLines, index))
+    previous = index
+
+  if shownIndices.len < lineCount:
+    result.add(TableIndent & "  ほか" & $(lineCount - shownIndices.len) &
+      "行（--verbose で全文）")
+
 proc runtimeErrorReason(sample: SampleResult): string =
   let diagnostic = sample.stderrLines.join("\n").toLowerAscii()
   let rawReason = sample.reason.toLowerAscii()
@@ -221,15 +288,10 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
       ">" & formatFloat(timeLimitSeconds, ffDecimal, 1) & " s"
     else:
       formatElapsed(sample.seconds)
-    var resultLine = position & " " & verdict & "  " & align(elapsed, 7)
+    let resultLine = position & " " & verdict & "  " & align(elapsed, 7)
 
     if sample.verdict == verdictWa:
-      let difference = firstDifference(sample)
-      if max(sample.expectedLines.len, sample.actualLines.len) > 1 or difference.lineNumber > 1:
-        resultLine.add("  line " & $difference.lineNumber)
-      lines.add(resultLine)
-      lines.add("         expected: " & difference.expected)
-      lines.add("         got:      " & difference.actual)
+      lines.add(wrongAnswerLines(sample, resultLine))
     elif sample.verdict == verdictRe:
       lines.add(resultLine)
       lines.add("         reason: " & runtimeErrorReason(sample))
