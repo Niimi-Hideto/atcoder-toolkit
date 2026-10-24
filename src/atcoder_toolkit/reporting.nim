@@ -1,4 +1,4 @@
-import std/[math, parseutils, sequtils, strutils]
+import std/[math, parseutils, sequtils, strutils, unicode]
 
 type
   Verdict* = enum
@@ -156,10 +156,18 @@ proc firstDifference(sample: SampleResult): tuple[lineNumber: int, expected, act
   (1, "(output differs)", "(output differs)")
 
 const
-  MaxTableRows = 20
+  MaxTableRows = 100
   MaxExpectedColumnWidth = 40
   MissingLine = "(なし)"
   TableIndent = "       "
+
+# 端末での見た目の幅。日本語などASCII以外の文字は2マス分として数える
+proc displayWidth(text: string): int =
+  for rune in text.runes:
+    result += (if rune.int < 0x80: 1 else: 2)
+
+proc padRight(text: string, width: int): string =
+  text & repeat(' ', max(0, width - displayWidth(text)))
 
 # 複数行の答えのWAを、expectedとgotを並べた表にする。違う行には「>」を付ける
 proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
@@ -198,7 +206,7 @@ proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
 
   var expectedWidth = "expected".len
   for index in shownIndices:
-    expectedWidth = max(expectedWidth, cell(expectedLines, index).len)
+    expectedWidth = max(expectedWidth, displayWidth(cell(expectedLines, index)))
   expectedWidth = min(expectedWidth, MaxExpectedColumnWidth)
   let numberWidth = ($lineCount).len
 
@@ -207,7 +215,7 @@ proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
     else: "  (" & $lineCount & "行中" & $differCount & "行が違う)"
   result.add(resultLine & summary)
   result.add(TableIndent & "  " & repeat(' ', numberWidth) & "  " &
-    alignLeft("expected", expectedWidth) & "  got")
+    padRight("expected", expectedWidth) & "  got")
 
   var previous = -1
   for index in shownIndices:
@@ -215,7 +223,7 @@ proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
       result.add(TableIndent & "  " & "...")
     let marker = if differs[index]: "> " else: "  "
     result.add(TableIndent & marker & align($(index + 1), numberWidth) & "  " &
-      alignLeft(cell(expectedLines, index), expectedWidth) & "  " & cell(actualLines, index))
+      padRight(cell(expectedLines, index), expectedWidth) & "  " & cell(actualLines, index))
     previous = index
 
   if shownIndices.len < lineCount:

@@ -525,12 +525,12 @@ expected:
     check "(3行中1行が違う)" in rendered
     check "       > 3  Yes       (なし)" in rendered
 
-  test "long WA output keeps only differing lines and their neighbors":
+  test "answers up to 100 lines are shown in full":
     var expected: seq[string] = @[]
     var actual: seq[string] = @[]
-    for index in 1 .. 30:
+    for index in 1 .. 100:
       expected.add($index)
-      actual.add(if index == 15: "x" else: $index)
+      actual.add(if index == 50: "x" else: $index)
     let report = TestReport(results: @[SampleResult(
       name: "sample-1",
       verdict: verdictWa,
@@ -539,12 +539,29 @@ expected:
       actualLines: actual
     )])
     let rendered = renderReport(report, 2.0)
-    check "(30行中1行が違う)" in rendered
-    check "        14  14" in rendered
-    check "      > 15  15" in rendered
-    check "        16  16" in rendered
-    check "        13  13" notin rendered
-    check "ほか27行（--verbose で全文）" in rendered
+    check "(100行中1行が違う)" in rendered
+    check "        1  1 " in rendered
+    check ">  50  50" in rendered
+    check "      100  100" in rendered
+    check "ほか" notin rendered
+
+  test "runaway output keeps only differing lines and their neighbors":
+    var actual: seq[string] = @[]
+    for index in 1 .. 1000:
+      actual.add($index)
+    let report = TestReport(results: @[SampleResult(
+      name: "sample-1",
+      verdict: verdictWa,
+      seconds: 0.005,
+      expectedLines: @["1", "2", "3"],
+      actualLines: actual
+    )])
+    let rendered = renderReport(report, 2.0)
+    check "(1000行中997行が違う)" in rendered
+    check "       3  3" in rendered
+    check ">    4  (なし)    4" in rendered
+    check "       1  1" notin rendered
+    check "ほか900行（--verbose で全文）" in rendered
 
   test "single-line WA keeps the short expected/got form":
     let report = TestReport(results: @[SampleResult(
