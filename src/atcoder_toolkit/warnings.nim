@@ -8,6 +8,7 @@ type
 const
   WarningMarker = ": warning: "
   MaxShownWarnings = 5
+  FrameWidth = 40
 
 # clang・GCC共通の「<path>:<line>:<col>: warning: <message> [-W<flag>]」形式を読む
 proc parseCompilerWarnings*(output: string): seq[CompilerWarning] =
@@ -41,11 +42,17 @@ proc renderWarnings*(warnings: seq[CompilerWarning]): string =
   if warnings.len == 0:
     return ""
 
+  # ACのときに見落とさないよう、一覧を「=」の線で上下から挟む
+  let title = " warning " & $warnings.len & " "
+  let leftRule = (FrameWidth - title.len) div 2
+  let rightRule = FrameWidth - title.len - leftRule
+
   let shown = warnings[0 ..< min(warnings.len, MaxShownWarnings)]
   let labelWidth = ("L" & $shown[^1].line).len
-  var lines = @["warning  " & $warnings.len]
+  var lines = @[repeat('=', leftRule) & title & repeat('=', rightRule)]
   for warning in shown:
     lines.add("  " & alignLeft("L" & $warning.line, labelWidth) & "  " & warning.message)
   if warnings.len > shown.len:
     lines.add("  ほか" & $(warnings.len - shown.len) & "件（--verbose で表示）")
+  lines.add(repeat('=', FrameWidth))
   lines.join("\n")

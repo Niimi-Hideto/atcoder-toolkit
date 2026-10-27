@@ -363,7 +363,10 @@ suite "compiler warnings":
     for line in [3, 8, 9, 10, 12, 14, 20]:
       many.add(CompilerWarning(line: line, message: "message " & $line))
     let rendered = renderWarnings(many)
-    check rendered.splitLines()[0] == "warning  7"
+    let renderedLines = rendered.splitLines()
+    check renderedLines[0] == repeat('=', 14) & " warning 7 " & repeat('=', 15)
+    check renderedLines[0].len == 40
+    check renderedLines[^1] == repeat('=', 40)
     check "  L3   message 3" in rendered
     check "  L12  message 12" in rendered
     check "message 14" notin rendered
