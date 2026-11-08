@@ -1,4 +1,4 @@
-import std/[algorithm, monotimes, os, strformat, strutils, times]
+import std/[algorithm, monotimes, os, strformat, strutils, terminal, times]
 
 import ./[errors, problem, processes, reporting, warnings]
 
@@ -124,6 +124,10 @@ proc showWarnings(warnings: seq[CompilerWarning]) =
     echo ""
     echo renderWarnings(warnings)
 
+# ファイルへの保存やパイプでは制御文字が混ざらないよう、端末に出すときだけ色を付ける
+proc shouldUseColor(): bool =
+  stdout.isatty() and not existsEnv("NO_COLOR")
+
 proc runWorkflow*(
     sourcePath: string,
     explicitUrl = "",
@@ -200,7 +204,7 @@ proc runWorkflow*(
       "テスト結果を解釈できませんでした（" & $report.results.len & "/" & $sampleCount & "件）"
     )
 
-  echo renderReport(report, config.timeLimitSeconds)
+  echo renderReport(report, config.timeLimitSeconds, useColor = shouldUseColor())
   showWarnings(compiled.warnings)
   allPassed(report)
 

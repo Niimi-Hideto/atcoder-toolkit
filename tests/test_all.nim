@@ -579,6 +579,30 @@ expected:
     check "         got:      41" in rendered
     check "行が違う" notin rendered
 
+  test "colors mark AC in yellow-green and everything else in yellow":
+    let report = TestReport(results: @[
+      SampleResult(name: "sample-1", verdict: verdictAc, seconds: 0.004),
+      SampleResult(name: "sample-2", verdict: verdictTle, seconds: 2.0)
+    ])
+    let green = "\e[38;5;118m"
+    let yellow = "\e[38;5;220m"
+    let reset = "\e[0m"
+    let rendered = renderReport(report, 2.0, useColor = true)
+    check "[1/2] " & green & "AC " & reset & "     4 ms" in rendered
+    check "[2/2] " & yellow & "TLE" & reset in rendered
+    check yellow & "FAIL" & reset & "  ■□  1/2" in rendered
+
+    let passing = TestReport(results: @[
+      SampleResult(name: "sample-1", verdict: verdictAc, seconds: 0.004)
+    ])
+    check green & "PASS" & reset in renderReport(passing, 2.0, useColor = true)
+
+  test "reports have no color codes unless requested":
+    let report = TestReport(results: @[
+      SampleResult(name: "sample-1", verdict: verdictAc, seconds: 0.004)
+    ])
+    check "\e[" notin renderReport(report, 2.0)
+
   test "known runtime errors get a concise reason":
     let segfaultReport = TestReport(results: @[
       SampleResult(

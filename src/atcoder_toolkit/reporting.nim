@@ -266,9 +266,19 @@ proc runtimeErrorReason(sample: SampleResult): string =
 
   "abnormal termination"
 
-proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
+const
+  AcColor = "\e[38;5;118m"     # 黄緑
+  NotAcColor = "\e[38;5;220m"  # 黄色
+  ResetColor = "\e[0m"
+
+proc renderReport*(report: TestReport, timeLimitSeconds: float, useColor = false): string =
   if report.results.len == 0:
     return ""
+
+  proc paint(text: string, accepted: bool): string =
+    if not useColor:
+      return text
+    (if accepted: AcColor else: NotAcColor) & text & ResetColor
 
   let total = report.results.len
   let numberWidth = ($total).len
@@ -291,7 +301,7 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
     of verdictTle: inc timeouts
 
     let position = "[" & align($(index + 1), numberWidth) & "/" & $total & "]"
-    let verdict = alignLeft(verdictText(sample.verdict), 3)
+    let verdict = paint(alignLeft(verdictText(sample.verdict), 3), sample.verdict == verdictAc)
     let elapsed = if sample.verdict == verdictTle:
       ">" & formatFloat(timeLimitSeconds, ffDecimal, 1) & " s"
     else:
@@ -313,14 +323,15 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float): string =
 
   lines.add("")
   if passed == total:
-    lines.add("PASS  " & marks & "  " & $passed & "/" & $total &
+    lines.add(paint("PASS", true) & "  " & marks & "  " & $passed & "/" & $total &
       "  test time " & formatElapsed(totalSeconds))
   else:
     var counts: seq[string] = @[]
     if wrongAnswers > 0: counts.add("WA " & $wrongAnswers)
     if runtimeErrors > 0: counts.add("RE " & $runtimeErrors)
     if timeouts > 0: counts.add("TLE " & $timeouts)
-    lines.add("FAIL  " & marks & "  " & $passed & "/" & $total & "  (" & counts.join(", ") & ")")
+    lines.add(paint("FAIL", false) & "  " & marks & "  " & $passed & "/" & $total &
+      "  (" & counts.join(", ") & ")")
     lines.add("      test time " & formatElapsed(totalSeconds))
 
   lines.join("\n")
