@@ -1,4 +1,4 @@
-import std/[os, strutils]
+import std/[os, sequtils, strutils]
 
 import atcoder_toolkit/[errors, initializer, workflow]
 
@@ -8,13 +8,17 @@ AtCoderToolKit
 Usage:
   actk init <ABC contest number>
   actk test <solution.cpp> [--url <AtCoder problem URL>] [--tl <seconds>]
-                           [--error <tolerance>] [--verbose]
+                           [--error <tolerance>] [--download] [--verbose]
   actk run <solution.cpp> [--verbose]
+  actk add <solution.cpp> [--url <AtCoder problem URL>]
+  actk cases <solution.cpp> [--url <AtCoder problem URL>] [--delete <number|all>]
 
 Examples:
   actk init 484
   actk test ABC_A/A484.cpp
   actk run ABC_A/A484.cpp
+  actk add ABC_D/D484.cpp
+  actk cases ABC_D/D484.cpp --delete 2
   actk test ABC_C/C484.cpp --tl 3
   actk test ABC_B/B484.cpp --error 1e-6
   actk test main.cpp --url https://atcoder.jp/contests/abc484/tasks/abc484_a
@@ -24,7 +28,9 @@ type
   CommandKind = enum
     commandInit,
     commandTest,
-    commandRun
+    commandRun,
+    commandAdd,
+    commandCases
 
   CliOptions = object
     command: CommandKind
@@ -34,6 +40,8 @@ type
     timeLimitSeconds: float
     errorTolerance: float
     verbose: bool
+    download: bool
+    deleteTarget: string
 
 proc isOption(argument, name: string): bool =
   argument == name or argument.startsWith(name & "=")
@@ -74,6 +82,8 @@ proc parseOptions(args: seq[string]): CliOptions =
   case args[0]
   of "test": result.command = commandTest
   of "run": result.command = commandRun
+  of "add": result.command = commandAdd
+  of "cases": result.command = commandCases
   else:
     raise newException(ActkError, "未対応のコマンドです: " & args[0] & "\n\n" & Usage)
   if args.len < 2:
@@ -84,12 +94,23 @@ proc parseOptions(args: seq[string]): CliOptions =
       "オプションはC++ファイルの後ろに書いてください。例: actk " & args[0] & " ABC_A/A484.cpp " & args[1]
     )
 
+  # コマンドごとに使えるオプション
+  let allowed = case result.command
+    of commandTest: @["--url", "--tl", "--error", "--download", "--verbose"]
+    of commandRun: @["--verbose"]
+    of commandAdd: @["--url"]
+    of commandCases: @["--url", "--delete"]
+    of commandInit: @[]
+
   result.sourcePath = args[1]
   var index = 2
   while index < args.len:
     let argument = args[index]
-    if result.command == commandRun and argument != "--verbose":
-      raise newException(ActkError, "runで使えるオプションは --verbose だけです: " & argument)
+    if argument.startsWith("--") and not allowed.anyIt(argument.isOption(it)):
+      raise newException(
+        ActkError,
+        args[0] & "で使えるオプションは " & allowed.join(" ") & " です: " & argument
+      )
     if argument.isOption("--url"):
       result.url = takeOptionValue(args, index, "--url", "問題URL")
     elif argument.isOption("--tl"):
@@ -98,6 +119,11 @@ proc parseOptions(args: seq[string]): CliOptions =
     elif argument.isOption("--error"):
       let value = takeOptionValue(args, index, "--error", "許容誤差")
       result.errorTolerance = parsePositiveFloat(value, "--error")
+    elif argument.isOption("--delete"):
+      result.deleteTarget = takeOptionValue(args, index, "--delete", "番号か all")
+    elif argument == "--download":
+      result.download = true
+      inc index
     elif argument == "--verbose":
       result.verbose = true
       inc index
@@ -123,11 +149,19 @@ proc main() =
       if options.timeLimitSeconds > 0.0:
         config.timeLimitSeconds = options.timeLimitSeconds
       config.errorTolerance = options.errorTolerance
-      if not runWorkflow(options.sourcePath, options.url, config, verbose = options.verbose):
+      if not runWorkflow(options.sourcePath, options.url, config, verbose = options.verbose,
+          forceDownload = options.download):
         quit(1)
     of commandRun:
       if not runInteractive(options.sourcePath, verbose = options.verbose):
         quit(1)
+    of commandAdd:
+      discard addCustomCases(options.sourcePath, options.url)
+    of commandCases:
+      if options.deleteTarget.len > 0:
+        deleteCustomCases(options.sourcePath, options.deleteTarget, options.url)
+      else:
+        listCustomCases(options.sourcePath, options.url)
   except ActkError as error:
     stderr.writeLine("[error] " & error.msg)
     quit(1)

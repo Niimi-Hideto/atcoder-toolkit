@@ -1,6 +1,6 @@
-import std/[algorithm, monotimes, os, strformat, strutils, terminal, times]
+import std/[monotimes, os, strformat, strutils, terminal, times]
 
-import ./[errors, problem, processes, reporting, warnings]
+import ./[cases, errors, problem, processes, reporting, warnings]
 
 type
   WorkflowConfig* = object
@@ -40,14 +40,12 @@ proc samplePairCount*(testDir: string): int =
       if fileExists(outputPath):
         inc result
 
-proc firstSampleInput(testDir: string): string =
-  var inputs: seq[string] = @[]
-  for kind, path in walkDir(testDir):
-    if kind == pcFile and path.endsWith(".in") and splitFile(path).name.startsWith("sample-"):
-      inputs.add(path)
-  if inputs.len > 0:
-    inputs.sort()
-    result = inputs[0]
+# 空振り起動に使う入力。サンプルがあればその1番目、なければ自作ケースの1番目
+proc firstCaseInput(testDir: string): string =
+  for prefix in ["sample-", CustomPrefix]:
+    let numbers = caseNumbers(testDir, prefix)
+    if numbers.len > 0:
+      return testDir / (prefix & $numbers[0] & ".in")
 
 proc cacheMarkerPath(testDir: string): string =
   testDir / ".download-complete"
@@ -134,7 +132,8 @@ proc runWorkflow*(
     config = defaultWorkflowConfig(),
     runner: CommandRunner = runCommand,
     verbose = false,
-    warmUp: WarmUpRunner = warmUpExecutable
+    warmUp: WarmUpRunner = warmUpExecutable,
+    forceDownload = false
   ): bool =
   validateSource(sourcePath)
 
@@ -146,9 +145,13 @@ proc runWorkflow*(
 
   createDir(testDir)
 
-  var sampleCount: int
-  if not hasCompleteSampleCache(testDir):
+  # 自作ケースがあれば、保存済みでないサンプルは取りに行かない。
+  # コンテスト中はログインなしでサンプルを取れず、失敗を毎回待つことになるため
+  let customCount = customCaseNumbers(testDir).len
+  var sampleCount = 0
+  if forceDownload or (not hasCompleteSampleCache(testDir) and customCount == 0):
     removeIncompleteSamples(testDir)
+    removeFile(cacheMarkerPath(testDir))
     let downloadResult = runner(
       config.oj,
       @["download", "-d", testDir, problemInfo.url]
@@ -159,6 +162,8 @@ proc runWorkflow*(
       echo "samples  FAILED"
       if not verbose:
         showCommandOutput(downloadResult)
+      echo ""
+      echo "コンテスト中などでサンプルを取れないときは、actk add で入力例を貼り付けて保存できます"
       return false
     sampleCount = samplePairCount(testDir)
     if sampleCount == 0:
@@ -168,15 +173,21 @@ proc runWorkflow*(
       "url=" & problemInfo.url & "\n" & "samples=" & $sampleCount & "\n"
     )
     echo "samples  " & $sampleCount & " downloaded"
-  else:
+  elif hasCompleteSampleCache(testDir):
     sampleCount = samplePairCount(testDir)
     echo "samples  " & $sampleCount & " cached"
+  else:
+    # 中断で残った不完全なサンプルを、自作ケースと一緒に流さないよう消しておく
+    removeIncompleteSamples(testDir)
+    echo "samples  skipped  (--download で取得)"
+  if customCount > 0:
+    echo "custom   " & $customCount & " saved"
 
   let compiled = compileSolution(resolvedSource, executablePath, config, runner, verbose)
   if not compiled.succeeded:
     return false
 
-  let warmUpInput = firstSampleInput(testDir)
+  let warmUpInput = firstCaseInput(testDir)
   if warmUpInput.len > 0:
     warmUp(executablePath, warmUpInput, config.timeLimitSeconds)
 
@@ -195,14 +206,17 @@ proc runWorkflow*(
     showCommandOutput(testResult)
     echo ""
 
-  let report = parseOjReport(testResult.output)
-  if not report.isComplete(sampleCount):
+  var report = parseOjReport(testResult.output)
+  let caseCount = sampleCount + customCount
+  if not report.isComplete(caseCount):
     if not verbose:
       showCommandOutput(testResult)
     raise newException(
       ActkError,
-      "テスト結果を解釈できませんでした（" & $report.results.len & "/" & $sampleCount & "件）"
+      "テスト結果を解釈できませんでした（" & $report.results.len & "/" & $caseCount & "件）"
     )
+  report.orderCases()
+  report.markUnanswered(unansweredCustomNames(testDir))
 
   echo renderReport(report, config.timeLimitSeconds, useColor = shouldUseColor())
   showWarnings(compiled.warnings)
@@ -243,3 +257,70 @@ proc runInteractive*(
   echo "exit     " & $exitCode & (if reason.len > 0: "  " & reason else: "")
   showWarnings(compiled.warnings)
   exitCode == 0
+
+proc testDirFor(sourcePath, explicitUrl: string): tuple[taskId, testDir: string] =
+  validateSource(sourcePath)
+  let resolvedSource = absolutePath(sourcePath)
+  let problemInfo = resolveProblem(resolvedSource, explicitUrl)
+  (problemInfo.taskId, findProjectRoot(resolvedSource) / ".actk" / "tests" / problemInfo.taskId)
+
+# 入力と答えを貼り付けて、自作ケースとして保存する。何も貼らずに終えるまで続け、追加した件数を返す
+proc addCustomCases*(
+    sourcePath: string,
+    explicitUrl = "",
+    reader: BlockReader = readBlockFromStdin
+  ): int =
+  let (taskId, testDir) = testDirFor(sourcePath, explicitUrl)
+  let existing = customCaseNumbers(testDir).len
+  echo "problem  " & taskId & (if existing > 0: "  (自作ケース " & $existing & "件保存済み)" else: "")
+
+  while true:
+    echo ""
+    echo "入力を貼り付けて Ctrl-D（追加を終えるなら、何も貼らずに Ctrl-D）"
+    stdout.flushFile()
+    let input = normalizeCaseText(reader())
+    if input.len == 0:
+      break
+    echo "答えを貼り付けて Ctrl-D（答えがなければ、何も貼らずに Ctrl-D）"
+    stdout.flushFile()
+    let answer = normalizeCaseText(reader())
+    let number = saveCustomCase(testDir, input, answer)
+    echo "saved    custom " & $number & (if answer.len == 0: "  (答えなし)" else: "")
+    inc result
+
+  echo "added    " & $result & "  (自作ケースは全部で " & $(existing + result) & "件)"
+
+proc listCustomCases*(sourcePath: string, explicitUrl = "") =
+  let (taskId, testDir) = testDirFor(sourcePath, explicitUrl)
+  let numbers = customCaseNumbers(testDir)
+  echo "problem  " & taskId
+  echo "folder   " & relativePath(testDir, getCurrentDir())
+  if numbers.len == 0:
+    echo ""
+    echo "自作ケースはまだありません（actk add で追加）"
+    return
+  for number in numbers:
+    let outputPath = customOutputPath(testDir, number)
+    echo ""
+    echo "custom " & $number & "  in   " & caseSummary(customInputPath(testDir, number))
+    echo repeat(' ', ("custom " & $number).len) & "  out  " &
+      (if fileExists(outputPath): caseSummary(outputPath) else: "(答えなし)")
+
+# 番号か all を指定して、自作ケースを消す
+proc deleteCustomCases*(sourcePath, target: string, explicitUrl = "") =
+  let (_, testDir) = testDirFor(sourcePath, explicitUrl)
+  var targets: seq[int] = @[]
+  if target == "all":
+    targets = customCaseNumbers(testDir)
+  else:
+    try:
+      targets = @[parseInt(target)]
+    except ValueError:
+      raise newException(ActkError, "--delete には番号か all を指定してください: " & target)
+  if targets.len == 0:
+    echo "自作ケースはありません"
+    return
+  for number in targets:
+    if not deleteCustomCase(testDir, number):
+      raise newException(ActkError, "custom " & $number & " は見つかりません")
+    echo "deleted  custom " & $number

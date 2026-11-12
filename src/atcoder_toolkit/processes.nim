@@ -1,4 +1,4 @@
-import std/[monotimes, os, osproc, times]
+import std/[monotimes, os, osproc, terminal, times]
 
 import ./errors
 
@@ -13,6 +13,9 @@ type
   InteractiveLauncher* = proc(executable: string): int {.closure.}
 
   WarmUpRunner* = proc(executable, inputPath: string, timeoutSeconds: float) {.closure.}
+
+  # 貼り付けられた文字列を、Ctrl-D（入力の終わり）まで読んで返す
+  BlockReader* = proc(): string {.closure.}
 
 proc runCommand*(executable: string, args: seq[string]): CommandResult =
   try:
@@ -58,3 +61,15 @@ proc warmUpExecutable*(executable, inputPath: string, timeoutSeconds: float) =
     except OSError:
       discard
 
+
+proc clearerr(file: File) {.importc, header: "<stdio.h>".}
+
+proc readBlockFromStdin*(): string =
+  var line = ""
+  while stdin.readLine(line):
+    result.add(line & "\n")
+  # Ctrl-Dで付いた「入力の終わり」の印を消し、続けて次の貼り付けを読めるようにする
+  clearerr(stdin)
+  # ターミナルは Ctrl-D を「^D」と表示するだけで改行しないので、次の案内を新しい行から始める
+  if stdin.isatty():
+    stdout.write("\n")

@@ -1,4 +1,4 @@
-import std/[math, parseutils, sequtils, strutils, unicode]
+import std/[algorithm, math, parseutils, sequtils, strutils, unicode]
 
 type
   Verdict* = enum
@@ -6,7 +6,8 @@ type
     verdictAc,
     verdictWa,
     verdictRe,
-    verdictTle
+    verdictTle,
+    verdictNoAnswer  # 答えを登録していない自作ケース。判定せず出力だけ見せる
 
   SampleResult* = object
     name*: string
@@ -64,7 +65,7 @@ proc parseOjReport*(rawOutput: string): TestReport =
     let line = stripAnsi(rawLine)
     let control = line.strip()
 
-    if control.startsWith("[INFO] sample-"):
+    if control.startsWith("[INFO] sample-") or control.startsWith("[INFO] custom-"):
       result.results.add(SampleResult(
         name: control["[INFO] ".len .. ^1],
         seconds: -1.0
@@ -116,6 +117,38 @@ proc parseOjReport*(rawOutput: string): TestReport =
     sample.actualLines = trimReportLines(sample.actualLines)
     sample.expectedLines = trimReportLines(sample.expectedLines)
 
+const CustomPrefix* = "custom-"
+
+proc isCustomCase*(name: string): bool =
+  name.startsWith(CustomPrefix)
+
+# 「sample-2」「custom-10」の末尾の番号。数字でなければ0
+proc caseNumber*(name: string): int =
+  let dash = name.rfind('-')
+  if dash < 0:
+    return 0
+  try:
+    parseInt(name[dash + 1 .. ^1])
+  except ValueError:
+    0
+
+# ojは名前の文字列順（custom-1、sample-1、sample-10、sample-2）で実行するので、
+# サンプル → 自作ケースの順に、それぞれ番号順へ並べ直す
+proc orderCases*(report: var TestReport) =
+  report.results.sort(proc(a, b: SampleResult): int =
+    result = cmp(a.name.isCustomCase(), b.name.isCustomCase())
+    if result == 0:
+      result = cmp(a.name.caseNumber(), b.name.caseNumber())
+    if result == 0:
+      result = cmp(a.name, b.name))
+
+# 答え（.out）のない自作ケースは、ojがACと表示するので「答えなし」に直す。
+# REやTLEは答えがなくても分かるので、そのまま残す
+proc markUnanswered*(report: var TestReport, names: seq[string]) =
+  for sample in report.results.mitems:
+    if sample.name in names and sample.verdict == verdictAc:
+      sample.verdict = verdictNoAnswer
+
 proc verdictText(verdict: Verdict): string =
   case verdict
   of verdictUnknown: "?"
@@ -123,6 +156,7 @@ proc verdictText(verdict: Verdict): string =
   of verdictWa: "WA"
   of verdictRe: "RE"
   of verdictTle: "TLE"
+  of verdictNoAnswer: "--"
 
 proc formatElapsed*(seconds: float): string =
   if seconds < 0.0:
@@ -230,6 +264,21 @@ proc wrongAnswerLines(sample: SampleResult, resultLine: string): seq[string] =
     result.add(TableIndent & "  ほか" & $(lineCount - shownIndices.len) &
       "行（--verbose で全文）")
 
+# 答えなしのケースの出力。1行ならその場に、複数行なら下に並べる
+proc unansweredLines(sample: SampleResult, resultLine: string): seq[string] =
+  let outputLines = sample.actualLines
+  if outputLines.len <= 1:
+    let shown = if outputLines.len == 0: "(empty)" else: visibleLine(outputLines[0])
+    return @[resultLine, "         output: " & shown]
+  result.add(resultLine)
+  result.add("         output:")
+  for index, line in outputLines:
+    if index >= MaxTableRows:
+      result.add(TableIndent & "    ほか" & $(outputLines.len - MaxTableRows) &
+        "行（--verbose で全文）")
+      break
+    result.add(TableIndent & "    " & visibleLine(line))
+
 proc runtimeErrorReason(sample: SampleResult): string =
   let diagnostic = sample.stderrLines.join("\n").toLowerAscii()
   let rawReason = sample.reason.toLowerAscii()
@@ -283,6 +332,7 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float, useColor = false
   let total = report.results.len
   let numberWidth = ($total).len
   var passed = 0
+  var unanswered = 0
   var wrongAnswers = 0
   var runtimeErrors = 0
   var timeouts = 0
@@ -296,48 +346,70 @@ proc renderReport*(report: TestReport, timeLimitSeconds: float, useColor = false
     case sample.verdict
     of verdictUnknown: discard
     of verdictAc: inc passed
+    of verdictNoAnswer: inc unanswered
     of verdictWa: inc wrongAnswers
     of verdictRe: inc runtimeErrors
     of verdictTle: inc timeouts
 
     let position = "[" & align($(index + 1), numberWidth) & "/" & $total & "]"
-    let verdict = paint(alignLeft(verdictText(sample.verdict), 3), sample.verdict == verdictAc)
+    let verdictCell = alignLeft(verdictText(sample.verdict), 3)
+    let verdict =
+      if sample.verdict == verdictNoAnswer: verdictCell
+      else: paint(verdictCell, sample.verdict == verdictAc)
     let elapsed = if sample.verdict == verdictTle:
       ">" & formatFloat(timeLimitSeconds, ffDecimal, 1) & " s"
     else:
       formatElapsed(sample.seconds)
-    let resultLine = position & " " & verdict & "  " & align(elapsed, 7)
+    var resultLine = position & " " & verdict & "  " & align(elapsed, 7)
+    # 自作ケースだけ名前を添え、サンプルと区別できるようにする
+    if sample.name.isCustomCase():
+      resultLine.add("  custom " & $sample.name.caseNumber())
 
-    if sample.verdict == verdictWa:
+    case sample.verdict
+    of verdictWa:
       lines.add(wrongAnswerLines(sample, resultLine))
-    elif sample.verdict == verdictRe:
+    of verdictRe:
       lines.add(resultLine)
       lines.add("         reason: " & runtimeErrorReason(sample))
+    of verdictNoAnswer:
+      lines.add(unansweredLines(sample, resultLine))
     else:
       lines.add(resultLine)
 
-  # ケースの順にACを■、それ以外を□で並べ、どのケースが落ちたかを1行で見せる
+  # ケースの順にACを■、AC以外を□、答えなしを-で並べ、どのケースが落ちたかを1行で見せる
   var marks = ""
   for sample in report.results:
-    marks.add(if sample.verdict == verdictAc: "■" else: "□")
+    marks.add(
+      case sample.verdict
+      of verdictAc: "■"
+      of verdictNoAnswer: "-"
+      else: "□")
 
+  # 答えなしのケースは判定していないので、合格数・ケース数には数えない
+  let judged = total - unanswered
+  let unansweredNote = if unanswered > 0: "  (答えなし " & $unanswered & ")" else: ""
   lines.add("")
-  if passed == total:
-    lines.add(paint("PASS", true) & "  " & marks & "  " & $passed & "/" & $total &
-      "  test time " & formatElapsed(totalSeconds))
+  if judged == 0:
+    lines.add("DONE  " & marks & unansweredNote & "  test time " & formatElapsed(totalSeconds))
+  elif passed == judged:
+    lines.add(paint("PASS", true) & "  " & marks & "  " & $passed & "/" & $judged &
+      unansweredNote & "  test time " & formatElapsed(totalSeconds))
   else:
     var counts: seq[string] = @[]
     if wrongAnswers > 0: counts.add("WA " & $wrongAnswers)
     if runtimeErrors > 0: counts.add("RE " & $runtimeErrors)
     if timeouts > 0: counts.add("TLE " & $timeouts)
-    lines.add(paint("FAIL", false) & "  " & marks & "  " & $passed & "/" & $total &
+    if unanswered > 0: counts.add("答えなし " & $unanswered)
+    lines.add(paint("FAIL", false) & "  " & marks & "  " & $passed & "/" & $judged &
       "  (" & counts.join(", ") & ")")
     lines.add("      test time " & formatElapsed(totalSeconds))
 
   lines.join("\n")
 
+# 答えなしのケースは、落ちていなければ合格として扱う
 proc allPassed*(report: TestReport): bool =
-  report.results.len > 0 and report.results.allIt(it.verdict == verdictAc)
+  report.results.len > 0 and
+    report.results.allIt(it.verdict in {verdictAc, verdictNoAnswer})
 
 proc isComplete*(report: TestReport, expectedCount: int): bool =
   report.results.len == expectedCount and

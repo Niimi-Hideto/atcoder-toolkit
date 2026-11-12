@@ -1,6 +1,6 @@
 import std/[monotimes, os, strutils, times, unittest]
 
-import atcoder_toolkit/[errors, initializer, problem, processes, reporting, warnings, workflow]
+import atcoder_toolkit/[cases, errors, initializer, problem, processes, reporting, warnings, workflow]
 
 suite "contest initialization":
   test "creates A through D from template without overwriting existing files":
@@ -250,6 +250,106 @@ suite "workflow":
     let errorIndex = testArgs.find("-e")
     check errorIndex >= 0
     check parseFloat(testArgs[errorIndex + 1]) == 1e-6
+
+suite "custom cases":
+  proc customRoot(label: string): tuple[root, source, testDir: string] =
+    let root = getTempDir() / ("actk-custom-" & label & "-" & $getTime().toUnix())
+    let source = root / "ABC_D" / "D997.cpp"
+    createDir(root / ".git")
+    createDir(source.parentDir)
+    writeFile(source, "int main() { return 0; }\n")
+    (root, source, root / ".actk" / "tests" / "abc997_d")
+
+  proc fakeReader(blocks: seq[string]): BlockReader =
+    var index = 0
+    result = proc(): string =
+      if index < blocks.len:
+        result = blocks[index]
+        inc index
+
+  test "pasted cases are saved with numbers, and a blank answer saves input only":
+    let (root, source, testDir) = customRoot("add")
+    defer: removeDir(root)
+    let added = addCustomCases(source, reader = fakeReader(@[
+      "3\r\n1 2 3\r\n\r\n", "6\n",
+      "7 8\n", "  \n",
+      ""
+    ]))
+    check added == 2
+    check readFile(testDir / "custom-1.in") == "3\n1 2 3\n"
+    check readFile(testDir / "custom-1.out") == "6\n"
+    check readFile(testDir / "custom-2.in") == "7 8\n"
+    check not fileExists(testDir / "custom-2.out")
+    check unansweredCustomNames(testDir) == @["custom-2"]
+
+    # 消した番号は使い回さず、続きの番号で追加する
+    deleteCustomCases(source, "1")
+    check addCustomCases(source, reader = fakeReader(@["1\n", "1\n", ""])) == 1
+    check customCaseNumbers(testDir) == @[2, 3]
+    deleteCustomCases(source, "all")
+    check customCaseNumbers(testDir).len == 0
+    expect ActkError:
+      deleteCustomCases(source, "5")
+
+  test "custom cases run without downloading samples, and unanswered ones are not judged":
+    let (root, source, testDir) = customRoot("run")
+    defer: removeDir(root)
+    discard saveCustomCase(testDir, "5 5\n", "10\n")
+    discard saveCustomCase(testDir, "7 8\n", "")
+    # 中断で残った不完全なサンプルは、自作ケースと一緒に流さない
+    writeFile(testDir / "sample-1.in", "stale\n")
+
+    var calls: seq[string] = @[]
+    var warmedInput = ""
+    let fakeRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      calls.add(if executable == "fake-cxx": "compile" else: args[0])
+      if executable == "fake-cxx":
+        writeFile(args[args.find("-o") + 1], "fake executable")
+      elif args[0] == "test":
+        check not fileExists(testDir / "sample-1.in")
+        return CommandResult(
+          output: "[INFO] custom-1\n[INFO] time: 0.004 sec\n[SUCCESS] AC\n" &
+            "[INFO] custom-2\n[INFO] time: 0.003 sec\noutput:\n15\n\n[SUCCESS] AC\n",
+          exitCode: 0
+        )
+      CommandResult(output: "", exitCode: 0)
+    let fakeWarmUp: WarmUpRunner = proc(executable, inputPath: string, timeoutSeconds: float) =
+      warmedInput = inputPath
+
+    let config = WorkflowConfig(compiler: "fake-cxx", oj: "fake-oj", timeLimitSeconds: 2.0)
+    check runWorkflow(source, config = config, runner = fakeRunner, warmUp = fakeWarmUp)
+    check calls == @["compile", "test"]
+    check warmedInput.extractFilename == "custom-1.in"
+
+    # --download なら、自作ケースがあってもサンプルを取りに行く
+    calls.setLen(0)
+    let downloadingRunner: CommandRunner = proc(executable: string, args: seq[string]): CommandResult =
+      if executable != "fake-cxx" and args[0] == "download":
+        calls.add("download")
+        writeFile(testDir / "sample-1.in", "1 2\n")
+        writeFile(testDir / "sample-1.out", "3\n")
+        return CommandResult(output: "", exitCode: 0)
+      if executable != "fake-cxx" and args[0] == "test":
+        calls.add("test")
+        return CommandResult(
+          output: "[INFO] custom-1\n[INFO] time: 0.004 sec\n[SUCCESS] AC\n" &
+            "[INFO] custom-2\n[INFO] time: 0.003 sec\noutput:\n15\n\n[SUCCESS] AC\n" &
+            "[INFO] sample-1\n[INFO] time: 0.002 sec\n[SUCCESS] AC\n",
+          exitCode: 0
+        )
+      fakeRunner(executable, args)
+    check runWorkflow(source, config = config, runner = downloadingRunner,
+      warmUp = fakeWarmUp, forceDownload = true)
+    check calls == @["download", "compile", "test"]
+    check readFile(testDir / "custom-1.in") == "5 5\n"
+    check warmedInput.extractFilename == "sample-1.in"
+
+  test "listing shows each case on one line":
+    let (root, source, testDir) = customRoot("list")
+    defer: removeDir(root)
+    discard saveCustomCase(testDir, "3\n1 2 3\n", "6\n")
+    check caseSummary(customInputPath(testDir, 1)) == "3 / 1 2 3"
+    listCustomCases(source)
 
 suite "warm-up before measuring":
   test "the fresh executable is started once with the first sample before oj test":
@@ -602,6 +702,64 @@ expected:
       SampleResult(name: "sample-1", verdict: verdictAc, seconds: 0.004)
     ])
     check "\e[" notin renderReport(report, 2.0)
+
+  test "cases are ordered samples first, by number, then custom cases":
+    var report = TestReport()
+    for name in ["custom-2", "custom-10", "sample-1", "sample-10", "sample-2"]:
+      report.results.add(SampleResult(name: name, verdict: verdictAc, seconds: 0.001))
+    report.orderCases()
+    var names: seq[string] = @[]
+    for sample in report.results:
+      names.add(sample.name)
+    check names == @["sample-1", "sample-2", "sample-10", "custom-2", "custom-10"]
+
+  test "unanswered custom cases show their output and are not counted as passed":
+    let rawOutput = """
+[INFO] custom-1
+[INFO] time: 0.004 sec
+[SUCCESS] AC
+
+[INFO] custom-2
+[INFO] time: 0.003 sec
+output:
+15
+
+[SUCCESS] AC
+
+[INFO] custom-3
+[INFO] time: 0.003 sec
+output:
+1
+2
+
+[SUCCESS] AC
+
+[INFO] sample-1
+[INFO] time: 0.002 sec
+[SUCCESS] AC
+"""
+    var report = parseOjReport(rawOutput)
+    check report.isComplete(4)
+    report.orderCases()
+    report.markUnanswered(@["custom-2", "custom-3"])
+    check report.allPassed()
+    let rendered = renderReport(report, 2.0)
+    check "[1/4] AC      2 ms\n" in rendered
+    check "[2/4] AC      4 ms  custom 1" in rendered
+    check "[3/4] --      3 ms  custom 2\n         output: 15" in rendered
+    check "[4/4] --      3 ms  custom 3\n         output:\n           1\n           2" in rendered
+    check "PASS  ■■--  2/2  (答えなし 2)  test time 12 ms" in rendered
+
+  test "only unanswered cases end with DONE, and a crash still fails":
+    var report = TestReport(results: @[
+      SampleResult(name: "custom-1", verdict: verdictAc, seconds: 0.003, actualLines: @["15"])
+    ])
+    report.markUnanswered(@["custom-1"])
+    check "DONE  -  (答えなし 1)  test time 3 ms" in renderReport(report, 2.0)
+
+    report.results.add(SampleResult(name: "custom-2", verdict: verdictRe, seconds: 0.003))
+    check not report.allPassed()
+    check "FAIL  -□  0/1  (RE 1, 答えなし 1)" in renderReport(report, 2.0)
 
   test "known runtime errors get a concise reason":
     let segfaultReport = TestReport(results: @[
